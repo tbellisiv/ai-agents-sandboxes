@@ -1,0 +1,29 @@
+{
+  "numStartups": 15,
+  "installMethod": "docker",
+  "autoUpdates": true,
+  "theme": "dark",
+  "hasCompletedOnboarding": true,
+  "shiftEnterKeyBindingInstalled": true,
+  "projects": {
+    "/workspace": {
+      "allowedTools": [],
+      "mcpContextUris": [],
+      "mcpServers": {},
+      "enabledMcpjsonServers": [],
+      "disabledMcpjsonServers": [],
+      "hasTrustDialogAccepted": true,
+      "projectOnboardingSeenCount": 1,
+      "hasClaudeMdExternalIncludesApproved": false,
+      "hasClaudeMdExternalIncludesWarningShown": false,
+      "reactVulnerabilityCache": {
+        "detected": false,
+        "package": null,
+        "packageName": null,
+        "version": null,
+        "packageManager": null
+      }
+    }
+  }
+}
+  

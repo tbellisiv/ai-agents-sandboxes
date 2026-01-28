@@ -1,0 +1,54 @@
+name: ${SANDBOX_ID:-dev} # set in .env or environment variable
+services:
+    sandbox:
+        build:
+            context: .
+            dockerfile: Dockerfile
+        cap_drop:
+            - ALL
+        cap_add:
+            # firewall:
+            - NET_ADMIN
+            - NET_RAW
+            # sudo/root:
+            - SETUID
+            - SETGID
+            - DAC_OVERRIDE
+            - CHOWN
+        pids_limit: 500 # prevent fork bombs
+        mem_limit: 8G
+        ipc: private # isolate IPC namespace
+        tmpfs:
+            - /tmp:size=1G # ephemeral /tmp
+        ulimits:
+            nofile:
+                soft: 65536
+                hard: 65536
+        container_name: ${SANDBOX_ID:-dev}  
+        environment:
+            - TZ=${TZ:-UTC}
+            - NODE_OPTIONS=--max-old-space-size=4096
+            # gemini CLI OAuth callback for "Login with Google" (fixed port for container port forwarding):
+            - OAUTH_CALLBACK_PORT=7777
+            - OAUTH_CALLBACK_HOST=0.0.0.0
+            - CLAUDE_CODE_OAUTH_TOKEN=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
+        volumes:
+            - .:/workspace:delegated
+            - /etc/localtime:/etc/localtime:ro
+            - /etc/timezone:/etc/timezone:ro
+            # persist volumes:
+            - bashhistory:/commandhistory
+            - claude-config:/home/node/.claude
+            - gemini-config:/home/node/.gemini
+
+volumes:
+    bashhistory:
+        name: ${SANDBOX_ID:-dev}-sandbox-bashhistory
+    claude-config:
+        name: ${SANDBOX_ID:-dev}-sandbox-claude-config
+    gemini-config:
+        name: ${SANDBOX_ID:-dev}-sandbox-gemini-config
+    node_modules:
+        name: ${SANDBOX_ID:-dev}-sandbox-node_modules
+    packages:
+        name: ${SANDBOX_ID:-dev}-sandbox-packages
