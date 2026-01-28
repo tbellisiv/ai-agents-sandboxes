@@ -1,0 +1,83 @@
+#!/bin/bash
+
+set -eu
+
+# shellcheck disable=SC2034
+
+SCRIPT_NAME=$(basename $0)    #equivalent to ${0##*/}
+SCRIPT_DIR=$(dirname $0)
+SCRIPT_VERSION=0.1
+
+LIB_DIR=$SCRIPT_DIR/../lib
+
+GETOPTIONS_LIB_PATH=$LIB_DIR/getoptions_lib
+
+if [ ! -f "$GETOPTIONS_LIB_PATH" ]; then
+    echo "$SCRIPT_NAME: Aborting- library '$GETOPTIONS_LIB_PATH' does not exist"
+    exit -1
+fi
+
+. $GETOPTIONS_LIB_PATH
+
+parser_definition() {
+
+	setup   REST help:usage abbr:true -- "Usage: $SCRIPT_NAME [<global-options>] [<command>] [<command-options>]"
+
+	msg -- '' "${SCRIPT_NAME}: AI Agent Sandbox Management" ''
+
+	msg -- 'Options:'
+
+	flag    GLOBAL  -g --global    -- "global flag"
+	disp    :usage  -h --help
+	disp    SCRIPT_VERSION    --version
+
+	msg         -- '' 'Commands:'
+	cmd env     -- "Management of sandbox environments (init)"
+	cmd session -- "Management of sandbox sessions (new, delete, stop, start, etc.)"
+}
+
+parser_definition_env() {
+	setup   REST help:usage abbr:true -- "Usage: $SCRIPT_NAME cmd2 [options...] [arguments...]"
+	msg -- '' 'Sandbox Environment Management (init)' ''
+	msg -- 'Options:'
+	disp    :usage  -h --help
+	cmd init -- "Generate configration for a new sandboxc"
+}
+
+parser_definition_session() {
+	setup   REST help:usage abbr:true -- "Usage: $SCRIPT_NAME session <command> <options>"
+	msg -- '' 'Sandbox Session Management (new, delete, stop, start, etc.)' ''
+	msg -- 'Options:'
+	disp    :usage  -h --help
+	cmd new -- "Create a new session in an existing sandbox environment"
+}
+
+
+eval "$(getoptions parser_definition) exit 1"
+
+if [ $# -gt 0 ]; then
+	cmd=$1
+	shift
+	case $cmd in
+		cmd1)
+			eval "$(getoptions parser_definition_cmd1)"
+			echo "FLAG_A: $FLAG_A"
+			;;
+		cmd2)
+			eval "$(getoptions parser_definition_cmd2)"
+			echo "FLAG_B: $FLAG_B"
+			;;
+		cmd3)
+			eval "$(getoptions parser_definition_cmd3)"
+			echo "FLAG_C: $FLAG_C"
+			;;
+		--) # no subcommand, arguments only
+	esac
+fi
+
+echo "GLOBAL: $GLOBAL"
+i=0
+while [ $# -gt 0 ] && i=$((i + 1)); do
+	echo "$i: $1"
+	shift
+done

@@ -1,14 +1,11 @@
 FROM ubuntu:noble-20260113
 
 #-- Build args
-ARG CLAUDE_CODE_VERSION=latest
-ARG GEMINI_CLI_VERSION=latest
-ARG OPENSNITCH_VERSION=1.7.2
-ARG GO_VERSION=1.25.5
-ARG TZ
-ENV TZ="$TZ"
+ARG SB_ARG_SUHASH
+ARG SB_ARG_TZ
+ARG SB_ARG_USERNAME
 
-ARG USERNAME=sandbox
+ENV TZ="$SB_ARG_TZ"
 
 #-- System
 RUN DEBIAN_FRONTEND=noninteractive apt-get update && apt-get upgrade -y && apt-get install -y --no-install-recommends \
@@ -32,11 +29,13 @@ RUN DEBIAN_FRONTEND=noninteractive apt-get update && apt-get upgrade -y && apt-g
 
 #create user
 COPY create_user.sh  /
-RUN /create_user.sh ${USERNAME}
+RUN /create_user.sh ${SB_ARG_USERNAME}
 
-#-- Disable npm
-RUN echo '#!/bin/sh\necho "ERROR: npm is disabled in this devcontainer. Use pnpm instead."\nexit 1' > /usr/local/bin/npm && \
-    chmod +x /usr/local/bin/npm
+
+#-- pnpm global packages (installed in post-create.sh, stored in packages volume)
+ENV PNPM_HOME=/workspace/main/.devcontainer-stores/packages/pnpm-global
+ENV PATH=$PATH:$PNPM_HOME
+
 
 ### SYSTEM CONFIG ###
 
@@ -46,12 +45,15 @@ RUN git config --global --add safe.directory /workspace
 #-- Persist bash history (dx: config in .devcontainer/.bashrc)
 RUN mkdir /commandhistory && \
     touch /commandhistory/.bash_history && \
-    chown -R ${USERNAME} /commandhistory
+    chown -R ${SB_ARG_USERNAME} /commandhistory
 
-#-- Create workspace and config directories
-RUN mkdir -p /workspace /home/${USERNAME}/.claude /home/${USERNAME}/.gemini && \
-    chown -R ${USERNAME}:${USERNAME} /home/${USERNAME}/.claude /home/${USERNAME}/.gemini
+#-- Create workspace and agent config directories
+RUN mkdir -p /workspace /home/${SB_ARG_USERNAME}/.claude && \
+    mkdir -p /home/${SB_ARG_USERNAME}/.gemini && \
+    chown -R ${SB_ARG_USERNAME}:${SB_ARG_USERNAME} /home/${SB_ARG_USERNAME}/.claude && \
+    chown -R ${SB_ARG_USERNAME}:${SB_ARG_USERNAME} /home/${SB_ARG_USERNAME}/.gemini
 
+#apt cleanup
 RUN apt-get clean && rm -rf /var/lib/apt/lists/*
 
 #-- Unset SUID bits
@@ -60,19 +62,19 @@ RUN chmod u-s /usr/bin/mount /usr/bin/umount /usr/bin/chsh \
 
 #workspace
 RUN mkdir -p /workspace
-RUN chown ${USERNAME}:${USERNAME} /workspace
+RUN chown ${SB_ARG_USERNAME}:${SB_ARG_USERNAME} /workspace
 
 #entrypoint
 COPY entrypoint.sh /entrypoint.sh
 RUN chmod 755 /entrypoint.sh
 
 #-- bash config
-COPY .bashrc /home/${USERNAME}/.bashrc
-RUN chown ${USERNAME}:${USERNAME} /home/${USERNAME}/.bashrc
+COPY .bashrc /home/${SB_ARG_USERNAME}/.bashrc
+RUN chown ${SB_ARG_USERNAME}:${SB_ARG_USERNAME} /home/${SB_ARG_USERNAME}/.bashrc
 
 ### SWITCH TO NORMAL USER ###
 
-USER ${USERNAME}
+USER ${SB_ARG_USERNAME}
 
 #nvm install
 COPY node_setup.sh  /

@@ -1,9 +1,14 @@
-name: ${SANDBOX_ID:-dev} # set in .env or environment variable
+name: "sandbox-${SB_SESSION_ID:?specify a value in .env}" # set in .env or environment variable
 services:
     sandbox:
+        image: ${SB_IMAGE_ID:?specify a value in .env}}
         build:
             context: .
             dockerfile: Dockerfile
+            args:
+                SB_ARG_SUHASH: ''
+                SB_ARG_TZ: ${SB_TZ:?specify a value in .env}}
+                SB_ARG_USERNAME: ${SB_USERNAME:?specify a value in .env}
         cap_drop:
             - ALL
         cap_add:
@@ -24,31 +29,33 @@ services:
             nofile:
                 soft: 65536
                 hard: 65536
-        container_name: ${SANDBOX_ID:-dev}  
+        container_name: sandbox
         environment:
-            - TZ=${TZ:-UTC}
+            - TZ=${SB_TZ}
+            - SB_SESSION_ID=${SB_SESSION_ID}
             - NODE_OPTIONS=--max-old-space-size=4096
             # gemini CLI OAuth callback for "Login with Google" (fixed port for container port forwarding):
             - OAUTH_CALLBACK_PORT=7777
             - OAUTH_CALLBACK_HOST=0.0.0.0
             - CLAUDE_CODE_OAUTH_TOKEN=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
         volumes:
+            # workspace files
             - .:/workspace:delegated
+
+            # TIME/TZ
             - /etc/localtime:/etc/localtime:ro
             - /etc/timezone:/etc/timezone:ro
+            
             # persist volumes:
             - bashhistory:/commandhistory
             - claude-config:/home/node/.claude
             - gemini-config:/home/node/.gemini
-
+                 
 volumes:
     bashhistory:
-        name: ${SANDBOX_ID:-dev}-sandbox-bashhistory
+        name: ${COMPOSE_PROJECT_NAME}-bashhistory
     claude-config:
-        name: ${SANDBOX_ID:-dev}-sandbox-claude-config
+        name: ${COMPOSE_PROJECT_NAME}-claude-config
     gemini-config:
-        name: ${SANDBOX_ID:-dev}-sandbox-gemini-config
-    node_modules:
-        name: ${SANDBOX_ID:-dev}-sandbox-node_modules
-    packages:
-        name: ${SANDBOX_ID:-dev}-sandbox-packages
+        name: ${COMPOSE_PROJECT_NAME}-gemini-config
+

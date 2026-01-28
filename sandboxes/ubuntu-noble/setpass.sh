@@ -8,7 +8,7 @@ command -v openssl > /dev/null || {
 
 [ -f .env ] || cp .env.example .env
 
-read -sp "Enter devcontainer root password: " pass && echo
+read -sp "Enter sandbox root password: " pass && echo
 hash=$(openssl passwd -6 "$pass" | sed 's/\$/\$\$/g')
 
 grep -v "^SUHASH=" .env > .env.tmp && mv .env.tmp .env
