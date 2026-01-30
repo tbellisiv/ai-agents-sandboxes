@@ -1,6 +1,6 @@
 #!/bin/bash
 
-set -eu
+set -u
 
 # shellcheck disable=SC2034
 
@@ -93,60 +93,52 @@ find_sb_dir() {
 # Compute the sandbox configuration. Logic:
 #
 #   1. Find SB_PROJECT_ROOT (i.e. the directory containing sb-project.env):
-#      - If --project-root is specified on the command-line, use it.
-#      - If $SB_PROJECT_ROOT is defined, use it.
+#      - If '--project-root <dir>' is specified on the command-line, set SB_PROJECT_ROOT=<dir>
+#      - If $SB_PROJECT_ROOT is defined in the environment, use it.
 #      - If the current directory is a descendant of a directory containing sb-project.env or contains sb-project.env as a child, use it. Set SB_PROJECT_ROOT to the directory path. Set SB_PROJECT_ID to the basename of the directory path.
-#	   - If the current directory is named '.sb' or is a descendant of a directoty named '.sb', use. Otherwise, abort. Set SB_PROJECT_ROOT to the directory path. Set SB_PROJECT_ID to the basename of the directory path.
+#	   - If the current directory is named '.sb' or is a descendant of a directory named '.sb', use it. Otherwise, abort. Set SB_PROJECT_ROOT to the directory path. Set SB_PROJECT_ID to the basename of the directory path.
+#      - Otherwise, abort.
 #
-#  2. Compute SB_WORKSPACE_MAIN_ROOT:
-#     - SB_WORKSPACE_MAIN_ROOT=$SB_PROJECT_ROOT/..
+#	2. Source $SB_PROJECT_ROOT/sb-project.env if present
 #
-#   3. Source $SB_PROJECT_ROOT/sb-project.env if present
+#   3. Determine SB_PROJECT_ID:
+#      - If SB_PROJECT_ID is defined, use it, otherwise abort.
 #
-#   4. Determine SB_PROFILE_ID:
-#      - If --profile is specified on the command-line, use it
-#      - if the current directory contains a sb-profile.env or is an ancestor of a directory that contains profile.env, use it (or abort if not found). Set SB_PROFILE_ID to the basename of the directory path.
+#	3. Compute SB_WORKSPACE_MAIN_ROOT:
+#       - SB_WORKSPACE_MAIN_ROOT=$SB_PROJECT_ROOT/..
 #
-#   5. Compute the path to the profile directory (SB_PROFILE_ROOT):
-#      - SB_PROFILE_ROOT=$SB_PROJECT_ROOT/profiles/${SB_PROFILE_ID}
+#	4. Determine SB_SANDBOX_ROOT:
+#      - If '--sandbox <sandbox-id>' is specified on the command-line, compute it: SB_SANDBOX_ROOT=$SB_PROJECT_ROOT/sandboxes/<sandbox-id>
+#      - If $SB_PROJECT_DEFAULT_SANDBOX_ID is defined in the environment, compute it: SB_SANDBOX_ROOT=$SB_PROJECT_ROOT/sandboxes/$SB_PROJECT_DEFAULT_SANDBOX_ID
+#      - if the current directory contains sb-sandbox.env or is a descendant of a directory that contains sb-sandbox.env, set SB_SANDBOX_ROOT to the directory containing sb-sandbox.env
+#      - Otherwise, abort.
 #
-#   . Determine SB_SANDBOX_ID:
-#      - If --sandbox is specified on the command-line, use it
-#      - If $SB_PROFILE_DEFAULT_SANDBOX_ID is defined, use it.
-#      - if the current directory contains sb-sandbox.env or is an ancestor of directory that contains sandbox.env, read SB_SANDBOX_ID and use it, Otherwise abort.
+#   4. Compute SB_SANDBOX_ID:
+#       - SB_SANDBOX_ID=$(basename $SB_SANDBOX_ROOT)
 #
-#	4. Compute the path to the sandbox directory (SB_SANDBOX_ROOT):
-#       - SB_SANDBOX_ROOT=$SB_PROFILE_ROOT/sandboxes/${SB_SANDBOX_ID}
-#
-#   5. Compute the aggregate configuration:
-#       - Add SB_WORKSPACE_ROOT
-#		- If SB_PPOJECT_ID is not present in $SB_PROJECT_ROOT/sb-project.env, add it
+#   5. Compute the aggregate configuration available to docker-compose.yaml:
+#       - Add SB_WORKSPACE_MAIN_ROOT
+#       - Add SB_PROJECT_ROOT
 #       - Add $SB_PROJECT_ROOT/sb-project.env
-#		- If SB_PROFILE_ID is not present in $SB_PROFILE_ROOT/sb-profile.env, add it
-#       - Add $SB_PROFILE_ROOT/sb-profile.env
-#		- If SB_SANDBOX_ID is not present in $SB_SANDBOX_ROOT/sb-sandbox.env, add it
+#       - Add SB_PROJECT_ID
+#       - Add SB_SANDBOX_ROOT
 #       - Add $SB_SANDBOX_ROOT/sb-sandbox.env
-#       - Add $SB_SANDBOX_ROOT/sb-user.env
-#       - Add $SB_SANDBOX_ROOT/secrets.env
-#       - Add $SB_SANDBOX_ROOT/compose.env
-
+#       - Add $SB_SANDBOX_ROOT/sb-login.env
+#       - Add $SB_SANDBOX_ROOT/sb-compose.env
+# Note: The files below are added to container environment but are not available to docker-compose.yaml:
+#       - Add $SB_SANDBOX_ROOT/user.env
+#       - Add $SB_SANDBOX_ROOT/user-secrets.env
 
 
 # For now, assume we are running this from the sandbox directory
 
 env=()
 
-#Add top-level computed vars- SB_PROJECT_ROOT, SB_PROFILE_ROOT, SB_WORKSPACE_MAIN_ROOT
-SB_PROJECT_ROOT=$(readlink -f ../../../..)
-SB_PROFILE_ROOT=$(readlink -f ../../../default)
-SB_PROFILE_ID=$(basename $SB_PROFILE_ROOT)
+# Added project/workspace env
+SB_PROJECT_ROOT=$(readlink -f ../../../.sb)
 SB_WORKSPACE_MAIN_ROOT=$(readlink -f $SB_PROJECT_ROOT/..)
-env+=("SB_PROJECT_ROOT=$SB_PROJECT_ROOT" "SB_PROFILE_ROOT=$SB_PROFILE_ROOT" "SB_PROFILE_ID=$SB_PROFILE_ID" "SB_WORKSPACE_MAIN_ROOT=$SB_WORKSPACE_MAIN_ROOT")
-
-PROFILE_ENV_PATH=$SB_PROFILE_ROOT/sb-profile.env
-
-ENV_FILES="$SB_PROJECT_ROOT/sb-project.env $PROFILE_ENV_PATH sb-sandbox.env sb-user.env"
-
+env+=("SB_PROJECT_ROOT=$SB_PROJECT_ROOT" "SB_WORKSPACE_MAIN_ROOT=$SB_WORKSPACE_MAIN_ROOT")
+ENV_FILES="$SB_PROJECT_ROOT/sb-project.env"
 eval "ENV_FILES_ARRAY=($ENV_FILES)"
 lines=
 for f in $ENV_FILES; do
@@ -158,12 +150,12 @@ for f in $ENV_FILES; do
 	fi
 done
 
-#Add sandbox-level computed vars
-SB_SANDBOX_ID=sb01
-SB_SANDBOX_ROOT=$SB_PROFILE_ROOT/sandboxes/$SB_SANDBOX_ID
+SB_SANDBOX_ID=default
+SB_SANDBOX_ROOT=$SB_PROJECT_ROOT/sandboxes/$SB_SANDBOX_ID
 env+=("SB_SANDBOX_ROOT=$SB_SANDBOX_ROOT" "SB_SANDBOX_ID=$SB_SANDBOX_ID")
 
-ENV_FILES="compose.env secrets.env"
+# Add compose-specific env
+ENV_FILES="sb-sandbox.env sb-login.env sb-compose.env"
 
 eval "ENV_FILES_ARRAY=($ENV_FILES)"
 lines=
