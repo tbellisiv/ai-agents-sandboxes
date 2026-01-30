@@ -1,14 +1,14 @@
-name: "sandbox-${SB_SESSION_ID:?specify a value in .env}" # set in .env or environment variable
+name: "${SB_COMPOSE_PROJECT_NAME:?specify a value in profile .env}"
 services:
     sandbox:
-        image: ${SB_IMAGE_ID:?specify a value in .env}}
+        image: ${SB_PROFILE_IMAGE_ID:?specify a value in profile .env}}
         build:
             context: .
             dockerfile: Dockerfile
             args:
                 SB_ARG_SUHASH: ''
-                SB_ARG_TZ: ${SB_TZ:?specify a value in .env}}
-                SB_ARG_USERNAME: ${SB_USERNAME:?specify a value in .env}
+                SB_ARG_TZ: ${SB_PROFILE_TZ:?specify a value in profile .env}}
+                SB_ARG_USERNAME: ${SB_PROFILE_USERNAME:?specify a value in profile .env}
         cap_drop:
             - ALL
         cap_add:
@@ -31,16 +31,20 @@ services:
                 hard: 65536
         container_name: sandbox
         environment:
-            - TZ=${SB_TZ}
-            - SB_SESSION_ID=${SB_SESSION_ID}
+            - TZ=${SB_PROFILE_TZ}
+            - SB_PROFILE_ID=${SB_PROFILE_ID?specify a value in profile .env}
+            - SB_SESSION_ID=${SB_SESSION_ID?specify a value in session .env}
             - NODE_OPTIONS=--max-old-space-size=4096
             # gemini CLI OAuth callback for "Login with Google" (fixed port for container port forwarding):
             - OAUTH_CALLBACK_PORT=7777
             - OAUTH_CALLBACK_HOST=0.0.0.0
-            - CLAUDE_CODE_OAUTH_TOKEN=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
+            - 
         volumes:
             # workspace files
             - .:/workspace:delegated
+
+            # agent init
+            - 
 
             # TIME/TZ
             - /etc/localtime:/etc/localtime:ro
@@ -53,9 +57,9 @@ services:
                  
 volumes:
     bashhistory:
-        name: ${COMPOSE_PROJECT_NAME}-bashhistory
+        name: ${SB_PROFILE_IMAGE_ID}-bashhistory
     claude-config:
-        name: ${COMPOSE_PROJECT_NAME}-claude-config
+        name: ${SB_PROFILE_IMAGE_ID}-claude-config
     gemini-config:
-        name: ${COMPOSE_PROJECT_NAME}-gemini-config
+        name: ${SB_PROFILE_IMAGE_ID}-gemini-config
 

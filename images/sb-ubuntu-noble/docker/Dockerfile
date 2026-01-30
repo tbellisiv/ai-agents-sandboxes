@@ -1,0 +1,102 @@
+FROM ubuntu:noble-20260113
+
+#-- Build args
+ARG USER_ID
+ARG GROUP_ID
+ARG SUHASH=
+ARG TZ=UTC
+ARG v=sandbox
+ARG SB_USER_NAME_REQUESTED=sandbox
+ARG SB_USER_GROUP_REQUESTED=sandbox
+
+ENV TZ="$TZ"
+
+#-- System
+RUN DEBIAN_FRONTEND=noninteractive apt-get update && apt-get upgrade -y && apt-get install -y --no-install-recommends \
+    ca-certificates \
+    fzf \
+    git \
+    curl \
+    iptables \
+    jq \
+    less \
+    nano \
+    nftables \
+    procps \
+    sudo \
+#    tmux \
+    unzip \
+    vim \
+    wget \
+    # required to compile opensnitch-controller:
+    protobuf-compiler
+
+#-- Initialize workspace mount dir
+ENV WORKSPACE_MAIN_ROOT=/workspace/main
+RUN mkdir -p /workspace/main
+
+# Create empty directory mount to hide the sandbox project files
+RUN mkdir -p /workspace/main/.sb
+
+#-- Initialize sandbox mount dirs mount
+ENV SANDBOX_ROOT=/sandbox
+ENV SANDBOX_INIT_ROOT=/sandbox/init
+ENV SANDBOX_SECRETS_ROOT=/sandbox/secrets
+RUN mkdir -p /sandbox/init
+RUN mkdir -p /sandbox/secrets
+
+#-- Create directory for info on the user account
+RUN mkdir -p /sandbox/user
+
+#get a group with the specified group ID (if exists) or create it (if it doesn't)
+COPY get_or_create_sb_group.sh  /tmp
+RUN /tmp/get_or_create_sb_group.sh ${GROUP_ID} ${SB_USER_GROUP_REQUESTED} > /sandbox/user/sb-user.env
+
+RUN echo "cat /sandbox/user/sb-user.env"
+
+#get a user with the specified user ID (if exists) or create it (if it doesn't)
+COPY get_or_create_sb_user.sh  /tmp
+RUN . /sandbox/user/sb-user.env && /tmp/get_or_create_sb_user.sh ${USER_ID} ${SB_USER_NAME_REQUESTED} ${SB_GROUP_NAME} >> /sandbox/user/sb-user.env
+
+#-- pnpm global packages (installed in post-create.sh, stored in packages volume)
+# ENV PNPM_HOME=/workspace/main/.devcontainer-stores/packages/pnpm-global
+# ENV PATH=$PATH:$PNPM_HOME
+
+### SYSTEM CONFIG ###
+
+#-- Git safe.directory (allows git in mounted workspace)
+RUN git config --global --add safe.directory /workspace
+
+#apt cleanup
+RUN apt-get clean && rm -rf /var/lib/apt/lists/*
+
+#-- Unset SUID bits
+RUN chmod u-s /usr/bin/mount /usr/bin/umount /usr/bin/chsh \
+    /usr/bin/chfn /usr/bin/gpasswd /usr/bin/newgrp /usr/bin/passwd
+
+#workspace
+RUN mkdir -p /workspace
+RUN . /sandbox/user/sb-user.env && chown $SB_USER_NAME:$SB_GROUP_NAME /workspace
+
+#entrypoint
+COPY entrypoint.sh /entrypoint.sh
+RUN chmod 755 /entrypoint.sh
+
+#-- bash config
+COPY dot-bashrc-init /tmp/.bashrc 
+RUN . /sandbox/user/sb-user.env && mv -f /tmp/.bashrc $SB_USER_HOME && chown $SB_USER_NAME:$SB_GROUP_NAME $SB_USER_HOME/.bashrc
+
+#-- Disable npm
+# USER root
+# RUN echo '#!/bin/sh\necho "ERROR: npm is disabled in this devcontainer. Use pnpm instead."\nexit 1' > /usr/local/bin/npm \
+#     && chmod +x /usr/local/bin/npm
+
+WORKDIR /workspace/main
+
+ENV SHELL=/bin/bash
+ENV EDITOR=nano
+ENV VISUAL=nano
+ENV TERM=xterm-256color
+
+
+ENTRYPOINT [ "/entrypoint.sh" ]

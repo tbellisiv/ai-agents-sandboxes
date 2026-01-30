@@ -28,7 +28,5 @@ npm install -g corepack
 #-- pnpm install (packageManager in package.json)
 corepack enable
 
-#-- Disable npm
-RUN echo '#!/bin/sh\necho "ERROR: npm is disabled in this devcontainer. Use pnpm instead."\nexit 1' > /usr/local/bin/npm && \
-    chmod +x /usr/local/bin/npm
+
 

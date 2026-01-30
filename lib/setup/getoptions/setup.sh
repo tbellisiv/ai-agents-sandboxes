@@ -4,8 +4,8 @@ SCRIPT_NAME=$(basename $0)
 SCRIPT_DIR=$(dirname $0)
 
 SETUP_DIR=$SCRIPT_DIR
-BIN_INSTALL_DIR=$SCRIPT_DIR/../../bin
-LIB_INSTALL_DIR=$SCRIPT_DIR/../../lib
+BIN_INSTALL_DIR=$SCRIPT_DIR/../../../bin
+LIB_INSTALL_DIR=$SCRIPT_DIR/../../../lib
 
 GETOPTIONS_RELEASES_URL=https://github.com/ko1nksm/getoptions/releases
 GETOPTIONS_VERSION=v3.3.2
