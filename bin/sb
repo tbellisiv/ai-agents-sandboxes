@@ -1,7 +1,5 @@
 #!/bin/bash
 
-set -u
-
 # shellcheck disable=SC2034
 
 SCRIPT_NAME=$(basename $0)    #equivalent to ${0##*/}
@@ -38,20 +36,33 @@ parser_definition() {
 }
 
 parser_definition_new() {
-	setup   REST error:error_init help:usage abbr:true -- "Usage: $SCRIPT_NAME init [<options>]"
-	msg -- '' 'Creates a new sandox within an existing project'
-	msg -- 'Options:'
-  param   template      -t    --template-id                     validate:'template_regex "^[a-zA-Z](-|_|[a-zA-z]|[0-9]$)*"'    -- "The ID of the template to use for the sandbox. Defaults to \$SB_USER_DEFAULT_TEMPLATE_ID in sb-user.env if specified. Otherwise, defaults to \$SB_SYSTEM_DEFAULT_TEMPLATE_ID in sb-system.env"
-	param   sandbox       -s    --sandbox-id      init:="default" validate:'sandbox_regex "^[a-zA-Z](-|_|[a-zA-z]|[0-9]$)*"'     -- "The sandbox ID. A meaningful but short identifier for the sandbox. Defaults to 'default'."
+	setup   REST error:error_init help:usage abbr:true -- "Usage: $SCRIPT_NAME init [<sandbox>] [<options>]"
+	msg -- '' 'Creates a new sandox within an existing project.'
+	msg -- ''
+  msg -- 'Arguments:'
+  msg -- ''
+  msg -- '  <sandbox> - ID of the sandbox to create. If not specified, a default sandbox ID (typically "default") wil be used'
+  msg -- ''
+  msg -- 'Options:'
+  msg -- ''
+  param  template      -t    --template-id      validate:'template_regex "^[a-zA-Z](-|_|[a-zA-z]|[0-9]$)*"'    -- "The ID of the template to use for the sandbox."
+  msg -- '                              If not specified, looks for a default template ID in the following locations (in order):'
+  msg -- '                                  - $SB_PROJECT_DEFAULT_TEMPLATE_ID in sb-project.env'
+  msg -- '                                  - $SB_USER_DEFAULT_TEMPLATE_ID in sb-user.env'
+  msg -- '                                  - $SB_SYSTEM_DEFAULT_TEMPLATE_ID in sb-system.env'
+  msg -- ''
+	#param   sandbox       -s    --sandbox-id       validate:'sandbox_regex "^[a-zA-Z](-|_|[a-zA-z]|[0-9]$)*"'     -- "The sandbox ID. A meaningful but short identifier for the sandbox. Defaults to 'default'."
 	param   project_path  -p    --project-path                                                                                   -- "The path to the project directory (the ".sb" directory). If not specified, $SCRIPT_NAME will attempt to find the path based on the current directory"
+  msg -- ''
 	disp    :usage        -h    --help
+  msg -- ''
 }
 
 parser_definition_shell() {
-	setup   REST error:error_init help:usage abbr:true -- "Usage: $SCRIPT_NAME init [<options>]"
+	setup   REST error:error_init help:usage abbr:true -- "Usage: $SCRIPT_NAME shell [<sandbox>] [<options>]"
 	msg -- '' 'Start'
 	msg -- 'Options:'
-	param   sandbox       -s    --sandbox-id      init:="default" validate:'sandbox_regex "^[a-zA-Z](-|_|[a-zA-z]|[0-9]$)*"'     -- "The sandbox ID. A meaningful but short identifier for the sandbox. Defaults to 'default'."
+	#param   sandbox       -s    --sandbox-id      init:="default" validate:'sandbox_regex "^[a-zA-Z](-|_|[a-zA-z]|[0-9]$)*"'     -- "The sandbox ID. A meaningful but short identifier for the sandbox. Defaults to 'default'."
 	param   project_path  -p    --project-path                                                                                   -- "The path to the project directory (the ".sb" directory). If not specified, $SCRIPT_NAME will attempt to find the path based on the current directory"
 	disp    :usage        -h    --help
 }
@@ -91,8 +102,28 @@ dir_search_tree_up_by_dirname() {
 	fi
 }
 
+# Source: https://unix.stackexchange.com/questions/293393/find-a-specific-file-in-the-nearest-ancestor-of-the-current-working-directory
+dir_search_tree_up_by_filename() {
+	if [ -z "$1" ]; then
+		echo "Usage: dir_search_tree_up_by_filename <filename>" >&2
+		return 
+	else
+		if [ -f "$1" ]; then
+			echo -n "${PWD%/}/$1"
+		elif [[ "$PWD" = / ]]; then
+			echo -n ""
+		else
+			# a subshell so that we don't affect the caller's $PWD
+			(cd .. && dir_search_tree_up_by_filename "$1")
+		fi 
+	fi
+}
 
-shell() {
+get_default_sandbox_id() {
+
+  project_path=
+
+  default_sandbox=
 
   #read system defaults
 	sb_install_root=$SCRIPT_DIR/..
@@ -125,6 +156,64 @@ shell() {
 		project_path=$(dir_search_tree_up_by_dirname ".sb") 
 		if [ -z "$project_path" ]; then
 			echo  "$SCRIPT_NAME: Error: Unable to find sandbox project root directory. 'cd' into the directory tree containing the sandbox project or run 'sb-project init' to create a project"
+      exit 1
+		fi
+	else
+		if [ ! -d "$project_path" ]; then
+			echo "$SCRIPT_NAME: Error: Sandbox project root directory '$project_path' does not exist"
+      exit 1
+		fi
+	fi
+
+  project_path_abs=$(readlink -f $project_path)
+  project_env_path=$project_path/sb-project.env
+
+  if [ ! -f "$project_env_path" ]; then
+    echo "$SCRIPT_NAME: Error: Sandbox project configuration file '$project_path_abs' does not exist"
+    exit 1
+  else
+
+    SB_PROJECT_DEFAULT_SANDBOX_ID=
+    SB_PROJECT_ID=
+    source $project_env_path
+
+    # see if $PWD or an ancestor directory contains sb-sandbox.env; if so, the name of the containing directory is the sandbox ID
+    sandbox_env_path=$(dir_search_tree_up_by_filename "sb-sandbox.env")
+    if [ -n "$sandbox_id" ]; then
+      default_sandbox=$(basename $sandbox_env_path)
+    else
+      # check the project/user/system env files for a default sandbox ID
+      default_sandbox=${SB_PROJECT_DEFAULT_SANDBOX_ID:-${SB_USER_DEFAULT_SANDBOX_ID:-$SB_SYSTEM_DEFAULT_SANDBOX_ID}}
+      default_sandbox_source=${SB_PROJECT_DEFAULT_SANDBOX_ID:+"project-default)"}
+      [ -z "$default_sandbox_source" ] && template_source=${SB_USER_DEFAULT_SANDBOX_ID:+"user-default"}
+      [ -z "$default_sandbox_source" ] && template_source=${SB_SYSTEM_DEFAULT_SANDBOX_ID:+"system-default"}
+    fi
+
+  fi
+
+
+  echo -n $default_sandbox
+
+}
+
+shell() {
+
+  #validate sandbox ID format (if specified)
+  regex='^[a-zA-Z](-|_|[a-zA-z]|[0-9]$)*'
+  if [ -n "$sandbox" ]; then
+    awk -v s="$sandbox" -v r="$regex" 'BEGIN{exit match(s, r)==0}'
+    if [ $? -ne 0 ]; then
+      echo "$SCRIPT_NAME: Error: The specified sandbox ID ('$sandbox') is not a valid identifier (does not match regex '$regex')"
+      exit 1
+    fi
+  fi
+
+  # get the path to the project
+	if [ -z "$project_path" ]; then
+		#search for project root
+		project_path=$(dir_search_tree_up_by_dirname ".sb") 
+		if [ -z "$project_path" ]; then
+			echo  "$SCRIPT_NAME: Error: Unable to find sandbox project root directory. 'cd' into the directory tree containing the sandbox project or run 'sb-project init' to create a project"
 			exit 1
 		fi
 	else
@@ -134,42 +223,43 @@ shell() {
 		fi
 	fi
 
+  # get the path to sb-project.env
 	project_path_abs=$(readlink -f $project_path)
+
 	project_env_path=$project_path/sb-project.env
 	if [ ! -f "$project_env_path" ]; then
 		echo "$SCRIPT_NAME: Error: Unable to start shell session- project configuration file '$project_path_abs' does not exist"
 		exit 1
 	fi
 
-  SB_PROJECT_DEFAULT_SANDBOX_ID=
+  # If no sandbox ID is specified on the command, find the default
+  if [ -z "$sandbox" ]; then
+    sandbox=$(get_default_sandbox_id $project_path_abs)
+    if [ -z "$sandbox" ]; then
+      echo "$SCRIPT_NAME: Unable to start shell session- sandbox ID is not specified on the command-line and no default sandbox ID is configured"
+      exit 1
+    fi
+  fi
+
+  # source sb-project.env
   SB_PROJECT_ID=
 	source $project_env_path
 
-  #get the sandbox ID
-	default_sandbox_source=
-	if [ -z "$sandbox" ]; then
-		sandbox=${SB_PROJECT_DEFAULT_SANDBOX_ID:-${SB_USER_DEFAULT_SANDBOX_ID:-$SB_SYSTEM_DEFAULT_SANDBOX_ID}}
-		default_sandbox_source=${SB_PROJECT_DEFAULT_SANDBOX_ID:+" project-default"}
-		[ -z "$default_sandbox_source" ] && template_source=${SB_USER_DEFAULT_SANDBOX_ID:+" user-default"}
-		[ -z "$default_sandbox_source" ] && template_source=${SB_SYSTEM_DEFAULT_SANDBOX_ID:+" system-default"}
-		if [ -z "$sandbox" ]; then
-			echo "$SCRIPT_NAME: Error: Unable to determine target sandbox- sandbox ID is specified on the command-lione and no project/user/system default sandvox ID is configured"
-			exit 1
-		fi
-  fi
-
+  #validate the sandbox path
 	sandbox_path=$project_path_abs/sandboxes/$sandbox
 	if [ ! -d "$sandbox_path" ]; then
-		echo "$SCRIPT_NAME: Error:Unable to start shell session- sandbox directory '$sandbox_path' does not exist"
+		echo "$SCRIPT_NAME: Error: Unable to start shell session- sandbox directory '$sandbox_path' does not exist"
 		exit 1
 	fi
 
+  #get path to sb-compose.env
   sandbox_compose_env_path=$sandbox_path/sb-compose.env
 	if [ ! -f "$sandbox_compose_env_path" ]; then
 		echo "$SCRIPT_NAME: Sandbox validation error- file '$sandbox_compose_env_path' does not exist"
 		exit 1
 	fi
 
+  #source sb-compose.env so we can get the docker compose service name
 	SB_COMPOSE_SERVICE=
   SB_SANDBOX_ROOT=$sandbox_path
   SB_SANDBOX_ID=$sandbox
@@ -180,30 +270,34 @@ shell() {
 		exit 1
 	fi
 
+  #get path to sb-sandbox.env
   sandbox_env_path=$sandbox_path/sb-sandbox.env
 	if [ ! -f "$sandbox_env_path" ]; then
 		echo "$SCRIPT_NAME: Sandbox validation error- file '$sandbox_env_path' does not exist"
 		exit 1
 	fi
 
-	SB_SHELL=
+	# source sb-sandbox.env so we can get the path to the shell
+  SB_SHELL=
 	source $sandbox_env_path
-
   if [ -z "$SB_SHELL" ]; then
 		echo "$SCRIPT_NAME: Sandbox validation error- variable 'SB_SHELL' is not defined in '$sandbox_env_path'"
 		exit 1
 	fi
 
+  #verify docker-compose.yml exists
   docker_compose_file_path=$sandbox_path/docker-compose.yml
   if [ ! -f $docker_compose_file_path ]; then
     echo "$SCRIPT_NAME: Sandbox validation error- file '$docker_compose_file_path' does not exist"
     exit 1
   fi
 
+  echo "$SCRIPT_NAME: Sandbox: $sandbox_path"
+  
   #Start service it is not running
   service_id=$(docker compose -f $docker_compose_file_path ps --status=running $SB_COMPOSE_SERVICE -q)
   if [ -z "$service_id" ]; then
-    echo "$SCRIPT_NAME: Starting sandbox '$sandbox'${default_sandbox_source}"
+    echo "$SCRIPT_NAME: Starting sandbox '$sandbox'"
     echo ""
     echo "docker compose -f $docker_compose_file_path up -d"
     docker compose -f $docker_compose_file_path up -d
@@ -214,8 +308,7 @@ shell() {
     echo ""
   fi
 
-  echo "$SCRIPT_NAME: Starting shell session in sandbox '$sandbox'${default_sandbox_source}"
-  echo "$SCRIPT_NAME: docker compose -f $docker_compose_file_path exec $SB_COMPOSE_SERVICE $SB_SHELL"
+  echo "$SCRIPT_NAME: Running: docker compose -f $docker_compose_file_path exec $SB_COMPOSE_SERVICE $SB_SHELL"
   docker compose -f $docker_compose_file_path exec $SB_COMPOSE_SERVICE $SB_SHELL
   if [ $? -ne 0 ]; then
     echo "$SCRIPT_NAME: Failed to start shell session"
@@ -225,6 +318,16 @@ shell() {
 }
 
 new_sandbox() {
+
+  #validate sandbox ID format (if specified)
+  regex='^[a-zA-Z](-|_|[a-zA-z]|[0-9]$)*'
+  if [ -n "$sandbox" ]; then
+    awk -v s="$sandbox" -v r="$regex" 'BEGIN{exit match(s, r)==0}'
+    if [ $? -ne 0 ]; then
+      echo "$SCRIPT_NAME: Error: The specified sandbox ID ('$sandbox') is not a valid identifier (does not match regex '$regex')"
+      exit 1
+    fi
+  fi
 
 	sb_install_root=$SCRIPT_DIR/..
 
@@ -277,6 +380,15 @@ new_sandbox() {
 
 	SB_PROJECT_DEFAULT_TEMPLATE_ID=
 	source $project_env_path
+
+  # If no sandbox ID is specified on the command, find the default
+  if [ -z "$sandbox" ]; then
+    sandbox=$(get_default_sandbox_id $project_path_abs)
+    if [ -z "$sandbox" ]; then
+      echo "$SCRIPT_NAME: Unable to start shell session- sandbox ID is not specified on the command-line and no default sandbox ID is configured"
+      exit 1
+    fi
+  fi
 
 	# get the template ID
 	template_source=
@@ -534,17 +646,17 @@ if [ $# -gt 0 ]; then
 		new)
 				cmd_parser="$(getoptions parser_definition_new)"
 				eval "$cmd_parser"
-				new_sandbox
+        sandbox=$1
+				new_sandbox $sandbox
 				;;
 		shell)
 				cmd_parser="$(getoptions parser_definition_shell)"
-				eval "$cmd_parser"
-				shell
+        eval "$cmd_parser"
+        sandbox=$1
+        shell $sandbox
 				;;        
 
-		--) 
-        usage
-        ;;
+		--) # no subcommand, arguments only
 	esac
 else
 		usage
