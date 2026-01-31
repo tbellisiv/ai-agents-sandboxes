@@ -1,0 +1,139 @@
+#!/bin/bash
+
+set -eu
+
+# shellcheck disable=SC2034
+
+SCRIPT_NAME=$(basename $0)    #equivalent to ${0##*/}
+SCRIPT_DIR=$(dirname $0)
+SCRIPT_VERSION=0.1
+
+LIB_DIR=$SCRIPT_DIR/../lib
+
+GETOPTIONS_LIB_PATH=$LIB_DIR/getoptions_lib
+
+if [ ! -f "$GETOPTIONS_LIB_PATH" ]; then
+    echo "$SCRIPT_NAME: Aborting- library '$GETOPTIONS_LIB_PATH' does not exist"
+    exit -1
+fi
+
+. $GETOPTIONS_LIB_PATH
+
+parser_definition() {
+
+	setup   REST help:usage abbr:true -- "Usage: $SCRIPT_NAME [<command>] [<command-options>]"
+
+	msg -- '' "${SCRIPT_NAME}: Commands for managing sandbox projects (init, etc.)" ''
+
+	msg -- 'Options:'
+
+	disp    :usage  -h --help
+	disp    SCRIPT_VERSION    --version
+
+	msg         -- '' 'Commands:'
+	cmd init -- "Creates a new session project"
+}
+
+parser_definition_init() {
+	setup   REST error:error_init help:usage abbr:true -- "Usage: $SCRIPT_NAME init [<options>]"
+	msg -- '' 'Generates a new sandox project structure'
+	msg -- 'Options:'
+	param   id            -i    --project-id    validate:'regex "^[a-zA-Z](-|_|[a-zA-z]|[0-9]$)*"'    -- "(Required) The project ID. A meaningful but short identifier. Used as the prefix for names of sandboxes created in the project."
+  param   path          -p    --project-path   init:="./.sb"                                        -- "The directory to create for the project files (project root). Defaults to \$PWD/.sb"
+	disp    :usage        -h    --help
+}
+
+regex() {
+	awk -v s="$OPTARG" -v r="$1" 'BEGIN{exit match(s, r)==0}'
+}
+
+error_init() {
+	
+  case $2 in
+		regex:*) echo "$SCRIPT_NAME: Error: The project ID specified in option '-p <id>' ('--project-id <id>') is not a valid identifier (does not match regex '$5')" ;;
+		*) return 0 ;; # Display default error
+	esac
+	return 1
+}
+
+
+init_project() {
+
+  if [ -z "$id" ]; then
+    usage
+    exit 1
+  fi
+
+  path_abs=$(readlink -f $path)
+
+  if [ -d "${path_abs}" ]; then
+    echo "$SCRIPT_NAME: Error: Cannot create project root directory '$path_abs' (directory exists)"
+    exit 1
+  fi
+
+  #Read the user's global defaults (if present)
+  SB_USER_ENV_PATH=
+  if [[ -v XDG_CONFIG_HOME && -f "$XDG_CONFIG_HOME/sb-user.env" ]]; then
+    SB_USER_ENV_PATH="$XDG_CONFIG_HOME/sb-user.env"
+  elif [ -f "$HOME/.config/sb/sb-user.env" ]; then
+    SB_USER_ENV_PATH="$HOME/.config/sb/sb-user.env"
+  elif [ -f "$HOME/.sb/sb-user.env" ]; then
+    SB_USER_ENV_PATH="$$HOME/.sb/sb-user.env"
+  fi
+
+  if [ -n "$SB_USER_ENV_PATH" ]; then
+    source "$SB_USER_ENV_PATH"
+  fi
+
+  echo -n "$SCRIPT_NAME: Creating project root directory '$path_abs' ... "
+  mkdir -p $path_abs
+  if [ $? -ne 0 ]; then
+		echo  "Failed\n$SCRIPT_NAME: Error: Failed to create project root directory '$path_abs'"
+		exit 1
+	fi
+  echo "Done"
+
+  project_env_path="$path_abs/sb-project.env"
+  echo -n "$SCRIPT_NAME: Creating project file '$project_env_path' ... "
+  cat <<EOF > $project_env_path
+SB_PROJECT_ID="$id"
+SB_PROJECT_PREFIX="sandbox-"
+SB_PROJECT_TZ="$(timedatectl status | grep "Time zone" | awk '{print $3}')"
+#SB_PROJECT_DEFAULT_SANDBOX_ID=
+#SB_PROJECT_DEFAULT_TEMPLATE_ID=
+EOF
+  if [ $? -ne 0 ]; then
+		echo  "Failed\n$SCRIPT_NAME: Error: Failed to create project file '$project_env_path'"
+		exit 1
+	fi
+  echo "Done"
+
+  sandboxes_root_dir=$path_abs/sandboxes
+  mkdir -p $sandboxes_root_dir
+  if [ $? -ne 0 ]; then
+		echo  "Failed\n$SCRIPT_NAME: Error: Failed to create sandboxes directory '$sandboxes_root_dir'"
+		exit 1
+	fi
+
+  echo "Run 'sb new' to create a sandbox" > $sandboxes_root_dir/README.md
+
+  echo "$SCRIPT_NAME: Project initialization complete. Run 'sb new' to create a sandbox."
+}
+
+eval "$(getoptions parser_definition) exit 1"
+
+if [ $# -gt 0 ]; then
+	cmd=$1
+	shift
+	case $cmd in
+		init)
+			  cmd_parser="$(getoptions parser_definition_init)"
+        eval "$cmd_parser"
+        init_project
+			  ;;
+
+		--) # no subcommand, arguments only
+	esac
+else
+    usage
+fi

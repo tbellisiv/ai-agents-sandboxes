@@ -74,7 +74,7 @@ findconfig() {
 }
 
 # Source: https://unix.stackexchange.com/questions/293393/find-a-specific-file-in-the-nearest-ancestor-of-the-current-working-directory
-find_sb_dir() {
+find_dir() {
   # from: https://www.npmjs.com/package/find-config#algorithm
   # 1. If X/file.ext exists and is a regular file, return it. STOP
   # 2. If X has a parent directory, change X to parent. GO TO 1
@@ -86,7 +86,7 @@ find_sb_dir() {
     false
   else
     # a subshell so that we don't affect the caller's $PWD
-    (cd .. && findconfig "$1")
+    (cd .. && find_project_root "$1")
   fi
 }
 

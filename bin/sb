@@ -1,0 +1,356 @@
+#!/bin/bash
+
+set -u
+
+# shellcheck disable=SC2034
+
+SCRIPT_NAME=$(basename $0)    #equivalent to ${0##*/}
+SCRIPT_DIR=$(dirname $0)
+SCRIPT_VERSION=0.1
+
+LIB_DIR=$SCRIPT_DIR/../lib
+
+GETOPTIONS_LIB_PATH=$LIB_DIR/getoptions_lib
+
+if [ ! -f "$GETOPTIONS_LIB_PATH" ]; then
+    echo "$SCRIPT_NAME: Aborting- library '$GETOPTIONS_LIB_PATH' does not exist"
+    exit -1
+fi
+
+. $GETOPTIONS_LIB_PATH
+
+parser_definition() {
+
+	setup   REST help:usage abbr:true -- "Usage: $SCRIPT_NAME [<command>] [<command-options>]"
+
+	msg -- '' "${SCRIPT_NAME}: Commands for managing sandboxes (new, stop, start, etc.)" ''
+
+	msg -- 'Options:'
+
+	disp    :usage  -h --help
+	disp    SCRIPT_VERSION    --version
+
+	msg         -- '' 'Commands:'
+	cmd new --  "Creates a new sandbox.           'sb new --help' for help"
+	#cmd sync -- "Refreshes sandbox configuration  'sb sync --help' for help"
+}
+
+parser_definition_new() {
+	setup   REST error:error_init help:usage abbr:true -- "Usage: $SCRIPT_NAME init [<options>]"
+	msg -- '' 'Creates a new sandox within an existing project'
+	msg -- 'Options:'
+  param   template      -t    --template-id                     validate:'template_regex "^[a-zA-Z](-|_|[a-zA-z]|[0-9]$)*"'    -- "The ID of the template to use for the sandbox. Defaults to \$SB_USER_DEFAULT_TEMPLATE_ID in sb-user.env if specified. Otherwise, defaults to \$SB_SYSTEM_DEFAULT_TEMPLATE_ID in sb-system.env"
+	param   sandbox       -s    --sandbox-id      init:="default" validate:'sandbox_regex "^[a-zA-Z](-|_|[a-zA-z]|[0-9]$)*"'     -- "The sandbox ID. A meaningful but short identifier for the sandbox. Defaults to 'default'."
+	param   project_path  -p    --project-path                                                                                   -- "The path to the project directory (the ".sb" directory). If not specified, $SCRIPT_NAME will attempt to find the path based on the current directory"
+	disp    :usage        -h    --help
+}
+
+sandbox_regex() {
+	awk -v s="$OPTARG" -v r="$1" 'BEGIN{exit match(s, r)==0}'
+}
+
+template_regex() {
+	awk -v s="$OPTARG" -v r="$1" 'BEGIN{exit match(s, r)==0}'
+}
+
+error_init() {
+	
+  case $2 in
+		sandbox_regex:*) echo "$SCRIPT_NAME: Error: The sandbox ID specified in option '-s <id>' ('--sandbox-id <id>') is not a valid identifier (does not match regex '$5')" ;;
+		template_regex:*) echo "$SCRIPT_NAME: Error: The template ID specified in option '-t <id>' ('--template-id <id>') is not a valid identifier (does not match regex '$5')" ;;
+		*) return 0 ;; # Display default error
+	esac
+	return 1
+}
+
+# Source: https://unix.stackexchange.com/questions/293393/find-a-specific-file-in-the-nearest-ancestor-of-the-current-working-directory
+dir_search_tree_up_by_dirname() {
+	if [ -z "$1" ]; then
+		echo "Usage: dir_search_tree_up_by_dirname <dirname>" >&2
+		return 
+	else
+		if [ -d "$1" ]; then
+			echo -n "${PWD%/}/$1"
+		elif [[ "$PWD" = / ]]; then
+			echo -n ""
+		else
+			# a subshell so that we don't affect the caller's $PWD
+			(cd .. && dir_search_tree_up_by_dirname "$1")
+		fi 
+	fi
+}
+
+new_sandbox() {
+
+	sb_install_root=$SCRIPT_DIR/..
+
+	sb_env_root=$sb_install_root/env
+	
+	sb_system_env_path=$sb_env_root/sb-system.env
+
+	SB_SYSTEM_DEFAULT_TEMPLATE_ID=
+	if [ -f $sb_system_env_path ]; then
+		source $sb_system_env_path
+	fi
+
+	#Read the user's global defaults (if present)
+  SB_USER_ENV_PATH=
+  if [[ -v XDG_CONFIG_HOME && -f "$XDG_CONFIG_HOME/sb-user.env" ]]; then
+    SB_USER_ENV_PATH="$XDG_CONFIG_HOME/sb-user.env"
+  elif [ -f "$HOME/.config/sb/sb-user.env" ]; then
+    SB_USER_ENV_PATH="$HOME/.config/sb/sb-user.env"
+  elif [ -f "$HOME/.sb/sb-user.env" ]; then
+    SB_USER_ENV_PATH="$$HOME/.sb/sb-user.env"
+  fi
+
+	SB_USER_DEFAULT_TEMPLATE_ID=
+  if [ -n "$SB_USER_ENV_PATH" ]; then
+    source "$SB_USER_ENV_PATH"
+  fi
+
+	if [ -z "$project_path" ]; then
+		#search for project root
+		project_path=$(dir_search_tree_up_by_dirname ".sb") 
+		if [ -z "$project_path" ]; then
+			echo  "$SCRIPT_NAME: Error: Unable to find sandbox project root directory. 'cd' into the directory tree containing the sandbox project or run 'sb-project init' to create a project"
+			exit 1
+		fi
+	else
+		if [ ! -d "$project_path" ]; then
+			echo "$SCRIPT_NAME: Error: Unable to create new sandbox- sandbox project root directory '$project_path' does not exist"
+			exit 1
+		fi
+	fi
+
+	project_path_abs=$(readlink -f $project_path)
+
+	project_env_path=$project_path/sb-project.env
+	if [ ! -f "$project_env_path" ]; then
+		echo "$SCRIPT_NAME: Error: Unable to create new sandbox- project configuration file '$project_path_abs' does not exist"
+		exit 1
+	fi
+	
+
+	SB_PROJECT_DEFAULT_TEMPLATE_ID=
+	source $project_env_path
+
+	# get the template ID
+	template_source=
+	if [ -z "$template" ]; then
+		template=${SB_PROJECT_DEFAULT_TEMPLATE_ID:-${SB_USER_DEFAULT_TEMPLATE_ID:-$SB_SYSTEM_DEFAULT_TEMPLATE_ID}}
+		template_source=${SB_PROJECT_DEFAULT_TEMPLATE_ID:+" project-default"}
+		[ -z "$template_source" ] && template_source=${SB_USER_DEFAULT_TEMPLATE_ID:+" user-default"}
+		[ -z "$template_source" ] && template_source=${SB_SYSTEM_DEFAULT_TEMPLATE_ID:+" system-default"}
+		if [ -z "$template" ]; then
+			echo "$SCRIPT_NAME: Error: Unable to create new sandbox- no template is specified and no project/user/system default template is configured"
+			exit 1
+		fi
+  fi
+	
+	sandboxes_template_root=$sb_install_root/templates/sandboxes
+	if [ ! -d "$sandboxes_template_root" ]; then
+		echo "$SCRIPT_NAME: Error: Unable to create new sandbox- sandbox templates root  directory '${sandboxes_template_root}' does not exist"
+		exit 1
+	fi
+	
+	sandboxes_template_root_abs=$(readlink -f $sandboxes_template_root)
+
+	#verify the destination directory for the sandbox does not exist
+	sandbox_dest_path=$project_path_abs/sandboxes/$sandbox
+	if [ -d "$sandbox_dest_path" ]; then
+		echo "$SCRIPT_NAME: Error: Unable to create new sandbox- destination directory '$sandbox_dest_path' exists"
+		exit 1
+	fi
+
+	#verify sandbox template path exists
+	template_path=$sandboxes_template_root_abs/$template
+  if [ ! -d "${template_path}" ]; then
+    echo "$SCRIPT_NAME: Error: Unable to create new sandbox- template directory '$template_path' does not exist"
+    exit 1
+  fi
+
+	template_hooks_create_path=$template_path/hooks/create
+	if [ ! -d "${template_hooks_create_path}" ]; then
+    echo "$SCRIPT_NAME: Error: Unable to create new sandbox- template hook scriptdirectory '$template_hooks_create_path' does not exist"
+    exit 1
+  fi
+	
+	template_hook_create_build_script_path=$template_hooks_create_path/build.sh
+	if [ ! -f "${template_hook_create_build_script_path}" ]; then
+    echo "$SCRIPT_NAME: Error: Unable to create new sandbox- template hook build script '$template_hook_create_build_script_path' does not exist"
+    exit 1
+  fi
+
+	template_hook_create_copy_script_path=$template_hooks_create_path/copy.sh
+	if [ ! -f "${template_hook_create_copy_script_path}" ]; then
+    echo "$SCRIPT_NAME: Error: Unable to create new sandbox- template hook create script '$template_hook_create_copy_script_path' does not exist"
+    exit 1
+  fi
+
+	template_hook_create_pre_copy_script_path=$template_hooks_create_path/pre-copy.sh
+	template_hook_create_post_copy_script_path=$template_hooks_create_path/post-copy.sh
+
+	sandbox_compose_env_path=$sandbox_dest_path/.env
+
+	echo "$SCRIPT_NAME: Creating sandbox '$sandbox' from${template_source} template '$template'"
+
+	echo "$SCRIPT_NAME: Creating sandbox directory '$sandbox_dest_path'"
+	mkdir -p $sandbox_dest_path
+	if [ $? -ne 0 ]; then
+		echo "$SCRIPT_NAME: Error: Failed to create sandbox directory '$directory'"
+		exit 1
+	fi
+
+	echo "$SCRIPT_NAME: Copying sandbox template artifacts"
+
+	if [ -f "$template_hook_create_pre_copy_script_path" ]; then
+		$template_hook_create_pre_copy_script_path $sandbox_dest_path
+		if [ $? -ne 0 ]; then
+			echo "$SCRIPT_NAME: Error: Failed to create new sandbox- template artifact pre-copy failed"
+			exit 1
+		fi
+	fi
+
+	$template_hook_create_copy_script_path $sandbox_dest_path
+	if [ $? -ne 0 ]; then
+		echo "$SCRIPT_NAME: Error: Failed to create new sandbox- template artifact copy failed"
+		exit 1
+	fi
+	
+	if [ -f "$template_hook_create_post_copy_script_path" ]; then
+		$template_hook_create_post_copy_script_path $sandbox_dest_path
+		if [ $? -ne 0 ]; then
+			echo "$SCRIPT_NAME: Error: Failed to create new sandbox- template artifact post-copy failed"
+			exit 1
+		fi
+	fi
+
+	echo "$SCRIPT_NAME: Building/refreshing template image"
+	$template_hook_create_build_script_path $sandbox_dest_path
+	if [ $? -ne 0 ]; then
+		echo "$SCRIPT_NAME: Error: Failed to create new sandbox- template image build failed"
+		exit 1
+	fi
+
+	echo "$SCRIPT_NAME: Generating Docker Compose env '$sandbox_compose_env_path'"
+
+	# Generate the docker compose env for the new sandbox:
+	#
+	#   1. Find SB_PROJECT_ROOT (i.e. the directory containing sb-project.env):
+	#      - If '--project-root <dir>' is specified on the command-line, set SB_PROJECT_ROOT=<dir>
+	#      - If $SB_PROJECT_ROOT is defined in the environment, use it.
+	#      - If the current directory is a descendant of a directory containing sb-project.env or contains sb-project.env as a child, use it. Set SB_PROJECT_ROOT to the directory path. Set SB_PROJECT_ID to the basename of the directory path.
+	#	   - If the current directory is named '.sb' or is a descendant of a directory named '.sb', use it. Otherwise, abort. Set SB_PROJECT_ROOT to the directory path. Set SB_PROJECT_ID to the basename of the directory path.
+	#      - Otherwise, abort.
+	#
+	#	2. Source $SB_PROJECT_ROOT/sb-project.env if present
+	#
+	#   3. Determine SB_PROJECT_ID:
+	#      - If SB_PROJECT_ID is defined, use it, otherwise abort.
+	#
+	#	3. Compute SB_WORKSPACE_MAIN_ROOT:
+	#       - SB_WORKSPACE_MAIN_ROOT=$SB_PROJECT_ROOT/..
+	#
+	#	4. Determine SB_SANDBOX_ROOT:
+	#      - If '--sandbox <sandbox-id>' is specified on the command-line, compute it: SB_SANDBOX_ROOT=$SB_PROJECT_ROOT/sandboxes/<sandbox-id>
+	#      - If $SB_PROJECT_DEFAULT_SANDBOX_ID is defined in the environment, compute it: SB_SANDBOX_ROOT=$SB_PROJECT_ROOT/sandboxes/$SB_PROJECT_DEFAULT_SANDBOX_ID
+	#      - if the current directory contains sb-sandbox.env or is a descendant of a directory that contains sb-sandbox.env, set SB_SANDBOX_ROOT to the directory containing sb-sandbox.env
+	#      - Otherwise, abort.
+	#
+	#   4. Compute SB_SANDBOX_ID:
+	#       - SB_SANDBOX_ID=$(basename $SB_SANDBOX_ROOT)
+	#
+	#   5. Compute the aggregate configuration available to docker-compose.yaml:
+	#       - Add SB_WORKSPACE_MAIN_ROOT
+	#       - Add SB_PROJECT_ROOT
+	#       - Add $SB_PROJECT_ROOT/sb-project.env
+	#       - Add SB_PROJECT_ID
+	#       - Add SB_SANDBOX_ROOT
+	#       - Add $SB_SANDBOX_ROOT/sb-sandbox.env
+	#       - Add $SB_SANDBOX_ROOT/sb-login.env
+	#       - Add $SB_SANDBOX_ROOT/sb-compose.env
+	#
+	# Note: The files below are added to container environment but are not available to docker-compose.yaml:
+	#       - Add $SB_SANDBOX_ROOT/user.env
+	#       - Add $SB_SANDBOX_ROOT/user-secrets.env
+
+
+	# For now, assume we are running this from the sandbox directory
+
+	env=()
+
+	# Added project/workspace env
+	SB_PROJECT_ROOT=$project_path_abs
+	SB_WORKSPACE_MAIN_ROOT=$(readlink -f $SB_PROJECT_ROOT/..)
+	env+=("SB_PROJECT_ROOT=$SB_PROJECT_ROOT" "SB_WORKSPACE_MAIN_ROOT=$SB_WORKSPACE_MAIN_ROOT")
+	ENV_FILES="$SB_PROJECT_ROOT/sb-project.env"
+	eval "ENV_FILES_ARRAY=($ENV_FILES)"
+	lines=
+	for f in $ENV_FILES; do
+		if [ -f "$f" ]; then
+			mapfile -t lines < $f
+			env+=("${lines[@]}")
+		else
+			echo "$SCRIPT_NAME: Warning- configuration file '$f' does not exist" >&2
+		fi
+	done
+
+	SB_SANDBOX_ID=$sandbox
+	SB_SANDBOX_ROOT=$sandbox_dest_path
+	env+=("SB_SANDBOX_ROOT=$SB_SANDBOX_ROOT" "SB_SANDBOX_ID=$SB_SANDBOX_ID")
+
+	# Add compose-specific env
+	ENV_FILES="$SB_SANDBOX_ROOT/sb-sandbox.env $SB_SANDBOX_ROOT/sb-login.env $SB_SANDBOX_ROOT/sb-compose.env"
+
+	eval "ENV_FILES_ARRAY=($ENV_FILES)"
+	lines=
+	for f in $ENV_FILES; do
+		if [ -f "$f" ]; then
+			mapfile -t lines < $f
+			env+=("${lines[@]}")
+		else
+			echo "$SCRIPT_NAME: Warning- configuration file '$f' does not exist" >&2
+		fi
+	done
+
+	# write the .env
+	echo "# This file is auto-generated." > $sandbox_compose_env_path
+	echo "# DO NOT MODIFY!!!" >> $sandbox_compose_env_path
+	echo "# Run 'sb sync' to update." >> $sandbox_compose_env_path
+	echo "" >> $sandbox_compose_env_path
+	printf "%s\n" "${env[@]}" >> $sandbox_compose_env_path
+	if [ $? -ne 0 ]; then
+		echo "$SCRIPT_NAME: Error: Failed to write '$sandbox_compose_env_path'"
+		exit 
+	fi
+
+	echo ""
+	echo "$SCRIPT_NAME: Sandbox creation complete- create sandbox '$sandbox' at '$sandbox_dest_path'"
+	echo ""
+	echo "Next Steps:"
+	echo ""
+	echo "    - Start  : Run 'sb start' or 'cd $sandbox_dest_path && docker compose up -d'"
+	echo ""
+	echo "    - Attach : Run 'sb attach' or 'cd $sandbox_dest_path && docker compose exec sandbox /bin/bash"
+	echo ""
+
+}
+
+# main
+eval "$(getoptions parser_definition) exit 1"
+
+if [ $# -gt 0 ]; then
+	cmd=$1
+	shift
+	case $cmd in
+		new)
+				cmd_parser="$(getoptions parser_definition_new)"
+				eval "$cmd_parser"
+				new_sandbox
+				;;
+
+		--) # no subcommand, arguments only
+	esac
+else
+		usage
+fi

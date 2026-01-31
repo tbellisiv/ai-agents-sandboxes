@@ -43,6 +43,14 @@ if [ $? -ne 0 ]; then
     exit 1
 fi
 
+echo "$SCRIPT_NAME: Installing 'getoptions' ($GETOPTIONS_VERSION) command to $GETOPTIONS_BIN_INSTALL_PATH"
+chmod 755 $GETOPTIONS_DOWNLOAD_PATH
+cp -f $GETOPTIONS_DOWNLOAD_PATH $GETOPTIONS_BIN_INSTALL_PATH
+if [ $? -ne 0 ]; then
+    echo "$SCRIPT_NAME: Aborting- install failed"
+    exit 1
+fi
+
 # echo "$SCRIPT_NAME: Installing 'getoptions' ($GETOPTIONS_VERSION) command to $GETOPTIONS_BIN_INSTALL_PATH"
 # cp -f $GETOPTIONS_DOWNLOAD_PATH $GETOPTIONS_BIN_INSTALL_PATH
 
@@ -67,4 +75,4 @@ if [ $? -ne 0 ]; then
     exit 1
 fi
 
-
+echo "$SCRIPT_NAME: Setup complete"
