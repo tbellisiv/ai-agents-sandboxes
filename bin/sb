@@ -29,10 +29,11 @@ parser_definition() {
 	disp    SCRIPT_VERSION    --version
 
 	msg           -- '' 'Commands:'
-	cmd new       -- "Creates a new sandbox.               'sb new   --help' for help"
-	cmd start     -- "Starts a sandbox                     'sb start --help' for help"
-	cmd stop      -- "Refreshes sandbox configuration      'sb stop  --help' for help"
-  cmd shell     -- "Starts a terminal shell in a sandbox 'sb shell  --help' for help"
+	cmd new       -- "Creates a new sandbox.               'sb new     --help' for help"
+	cmd start     -- "Starts a sandbox                     'sb start   --help' for help"
+	cmd stop      -- "Refreshes sandbox configuration      'sb stop    --help' for help"
+  cmd shell     -- "Starts a terminal shell in a sandbox 'sb shell   --help' for help"
+  cmd compose   -- "Runa docker compose command          'sb compose --help' for help"
 }
 
 parser_definition_new() {
@@ -60,10 +61,29 @@ parser_definition_new() {
 
 parser_definition_shell() {
 	setup   REST error:error_init help:usage abbr:true -- "Usage: $SCRIPT_NAME shell [<sandbox>] [<options>]"
-	msg -- '' 'Start'
+	msg -- '' 'Starts a sandbox (if not running)'
 	msg -- 'Options:'
 	#param   sandbox       -s    --sandbox-id      init:="default" validate:'sandbox_regex "^[a-zA-Z](-|_|[a-zA-z]|[0-9]$)*"'     -- "The sandbox ID. A meaningful but short identifier for the sandbox. Defaults to 'default'."
 	param   project_path  -p    --project-path                                                                                   -- "The path to the project directory (the ".sb" directory). If not specified, $SCRIPT_NAME will attempt to find the path based on the current directory"
+	disp    :usage        -h    --help
+}
+
+parser_definition_stop() {
+	setup   REST error:error_init help:usage abbr:true -- "Usage: $SCRIPT_NAME stop [<sandbox>] [<options>]"
+	msg -- '' 'Stops a sandbox (if running)'
+	msg -- 'Options:'
+	#param   sandbox       -s    --sandbox-id      init:="default" validate:'sandbox_regex "^[a-zA-Z](-|_|[a-zA-z]|[0-9]$)*"'     -- "The sandbox ID. A meaningful but short identifier for the sandbox. Defaults to 'default'."
+	param   project_path  -p    --project-path                                                                                   -- "The path to the project directory (the ".sb" directory). If not specified, $SCRIPT_NAME will attempt to find the path based on the current directory"
+	disp    :usage        -h    --help
+}
+
+parser_definition_compose() {
+	setup   REST error:error_init help:usage abbr:true -- "Usage: $SCRIPT_NAME compose [<sandbox>] [<options>]"
+	msg -- '' 'Runs a "docker compose" command against a sandbox'
+	msg -- 'Options:'
+	param   cmd            -c    --command                                                                                        -- "(Required) The command to run"
+  #param   sandbox       -s    --sandbox-id      init:="default" validate:'sandbox_regex "^[a-zA-Z](-|_|[a-zA-z]|[0-9]$)*"'     -- "The sandbox ID. A meaningful but short identifier for the sandbox. Defaults to 'default'."
+	param   project_path  -p    --project-path                                                                                    -- "The path to the project directory (the ".sb" directory). If not specified, $SCRIPT_NAME will attempt to find the path based on the current directory"
 	disp    :usage        -h    --help
 }
 
@@ -120,8 +140,6 @@ dir_search_tree_up_by_filename() {
 }
 
 get_default_sandbox_id() {
-
-  project_path=
 
   default_sandbox=
 
@@ -191,9 +209,202 @@ get_default_sandbox_id() {
 
   fi
 
-
   echo -n $default_sandbox
 
+}
+
+get_sandbox_cmd_conf()
+{
+  # globals:
+  #  $sandbox
+  #  $project_path
+
+  #validate sandbox ID format (if specified)
+  regex='^[a-zA-Z](-|_|[a-zA-z]|[0-9]$)*'
+  if [ -n "$sandbox" ]; then
+    awk -v s="$sandbox" -v r="$regex" 'BEGIN{exit match(s, r)==0}'
+    if [ $? -ne 0 ]; then
+      echo "$SCRIPT_NAME: Error: The specified sandbox ID ('$sandbox') is not a valid identifier (does not match regex '$regex')"
+      exit 1
+    fi
+  fi
+
+  # get the path to the project
+	if [ -z "$project_path" ]; then
+		#search for project root
+		project_path=$(dir_search_tree_up_by_dirname ".sb") 
+		if [ -z "$project_path" ]; then
+			echo  "$SCRIPT_NAME: Error: Unable to find sandbox project root directory. 'cd' into the directory tree containing the sandbox project or run 'sb-project init' to create a project"
+			exit 1
+		fi
+	else
+		if [ ! -d "$project_path" ]; then
+			echo "$SCRIPT_NAME: Error: Sandbox project root directory '$project_path' does not exist"
+			exit 1
+		fi
+	fi
+
+  # get the path to sb-project.env
+	project_path_abs=$(readlink -f $project_path)
+
+	project_env_path=$project_path/sb-project.env
+	if [ ! -f "$project_env_path" ]; then
+		echo "$SCRIPT_NAME: Error: Sandbox project configuration file '$project_path_abs' does not exist"
+		exit 1
+	fi
+
+  # If no sandbox ID is specified on the command, find the default
+  if [ -z "$sandbox" ]; then
+    sandbox=$(get_default_sandbox_id $project_path_abs)
+    if [ -z "$sandbox" ]; then
+      echo "$SCRIPT_NAME: Error unable to determine sandbox- sandbox ID is not specified on the command-line and no default sandbox ID is configured"
+      exit 1
+    fi
+  fi
+
+  # source sb-project.env
+  SB_PROJECT_ID=
+	source $project_env_path
+
+  #validate the sandbox path
+	sandbox_path=$project_path_abs/sandboxes/$sandbox
+	if [ ! -d "$sandbox_path" ]; then
+		echo "$SCRIPT_NAME: Error: Sandbox directory '$sandbox_path' does not exist"
+		exit 1
+	fi
+
+  #get path to sb-compose.env
+  sandbox_compose_env_path=$sandbox_path/sb-compose.env
+	if [ ! -f "$sandbox_compose_env_path" ]; then
+		echo "$SCRIPT_NAME: Sandbox validation error- file '$sandbox_compose_env_path' does not exist"
+		exit 1
+	fi
+
+  #source sb-compose.env so we can get the docker compose service name
+	SB_COMPOSE_SERVICE=
+  SB_SANDBOX_ROOT=$sandbox_path
+  SB_SANDBOX_ID=$sandbox
+	source $sandbox_compose_env_path
+
+	if [ -z "$SB_COMPOSE_SERVICE" ]; then
+		echo "$SCRIPT_NAME: Sandbox validation error- variable 'SB_COMPOSE_SERVICE' is not defined in '$sandbox_compose_env_path'"
+		exit 1
+	fi
+
+  #get path to sb-sandbox.env
+  sandbox_env_path=$sandbox_path/sb-sandbox.env
+	if [ ! -f "$sandbox_env_path" ]; then
+		echo "$SCRIPT_NAME: Sandbox validation error- file '$sandbox_env_path' does not exist"
+		exit 1
+	fi
+
+	# source sb-sandbox.env so we can get the path to the shell
+  SB_SHELL=
+	source $sandbox_env_path
+  if [ -z "$SB_SHELL" ]; then
+		echo "$SCRIPT_NAME: Sandbox validation error- variable 'SB_SHELL' is not defined in '$sandbox_env_path'"
+		exit 1
+	fi
+
+  #verify docker-compose.yml exists
+  docker_compose_file_path=$sandbox_path/docker-compose.yml
+  if [ ! -f $docker_compose_file_path ]; then
+    echo "$SCRIPT_NAME: Sandbox validation error- file '$docker_compose_file_path' does not exist"
+    exit 1
+  fi
+
+  sb_conf="__sb_project_root=$project_path_abs __project_id=$SB_PROJECT_ID __sandbox_id=$sandbox __sandbox_root=$sandbox_path __compose_file=$docker_compose_file_path __compose_service=$SB_COMPOSE_SERVICE __shell=$SB_SHELL"
+
+  echo -n "$sb_conf"
+}
+
+stop() {
+
+  #get the sandbox config
+  cmd_conf=$(get_sandbox_cmd_conf)
+  eval "$cmd_conf"
+  if [ $? -ne 0 ]; then
+    exit 1
+  fi
+
+  echo "$SCRIPT_NAME: Sandbox: $__sandbox_root"
+  
+  #Stop the service it is running
+  status=$(docker compose -f $__compose_file ps $__compose_service --format "{{.State}}")
+  if [ $? -ne 0 ]; then
+    echo "$SCRIPT_NAME: Error- failed to obtain sandbox status"
+    exit 1
+  fi
+  
+  if [ "$status" != "running" ]; then
+    echo "$SCRIPT_NAME: Sandbox '$__sandbox_id' is not running"
+  else
+    echo "$SCRIPT_NAME: Stopping sandbox '$__sandbox_id'"
+    echo "$SCRIPT_NAME: Running: docker compose -f $__compose_file stop"
+    echo ""
+    docker compose -f $__compose_file stop
+    if [ $? -ne 0 ]; then
+      echo "$SCRIPT_NAME: Error- failed to stop sandbox"
+      exit 1
+    fi
+  fi
+}
+
+compose() {
+
+  if [ -z "$cmd" ]; then
+    usage
+    exit 0
+  fi
+
+  #get the sandbox config
+  cmd_conf=$(get_sandbox_cmd_conf)
+  eval "$cmd_conf"
+  if [ $? -ne 0 ]; then
+    exit 1
+  fi
+
+  echo "$SCRIPT_NAME: Sandbox: $__sandbox_root"
+  echo "$SCRIPT_NAME: Running: docker compose -f $__compose_file $cmd"
+  echo ""
+  docker compose -f $__compose_file "$cmd"
+  if [ $? -ne 0 ]; then
+    echo "$SCRIPT_NAME: Error- docker compose command failed"
+    exit 1
+  fi
+  
+}
+
+start() {
+
+  #get the sandbox config
+  cmd_conf=$(get_sandbox_cmd_conf)
+  eval "$cmd_conf"
+  if [ $? -ne 0 ]; then
+    exit 1
+  fi
+
+  echo "$SCRIPT_NAME: Sandbox: $__sandbox_root"
+  
+  #Start the service it is not running
+  status=$(docker compose -f $__compose_file ps $__compose_service --format "{{.State}}")
+  if [ $? -ne 0 ]; then
+    echo "$SCRIPT_NAME: Error- failed to obtain sandbox status"
+    exit 1
+  fi
+  
+  if [ "$status" == "running" ]; then
+    echo "$SCRIPT_NAME: Sandbox '$__sandbox_id' is already running"
+  else
+    echo "$SCRIPT_NAME: Starting sandbox '$__sandbox_id'"
+    echo "$SCRIPT_NAME: Running: docker compose -f $__compose_file up -d"
+    echo ""
+    docker compose -f $__compose_file up -d
+    if [ $? -ne 0 ]; then
+      echo "$SCRIPT_NAME: Error: Failed to start sandbox"
+      exit 1
+    fi
+  fi
 }
 
 shell() {
@@ -296,22 +507,27 @@ shell() {
   
   #Start service it is not running
   service_id=$(docker compose -f $docker_compose_file_path ps --status=running $SB_COMPOSE_SERVICE -q)
+  if [ $? -ne 0 ]; then
+    echo "$SCRIPT_NAME: Error- failed to obtain sandbox status"
+    exit 1
+  fi
   if [ -z "$service_id" ]; then
     echo "$SCRIPT_NAME: Starting sandbox '$sandbox'"
     echo ""
     echo "docker compose -f $docker_compose_file_path up -d"
     docker compose -f $docker_compose_file_path up -d
     if [ $? -ne 0 ]; then
-      echo "$SCRIPT_NAME: Failed to start sandbox"
+      echo "$SCRIPT_NAME: Error- failed to start sandbox"
       exit 1
     fi
     echo ""
   fi
 
   echo "$SCRIPT_NAME: Running: docker compose -f $docker_compose_file_path exec $SB_COMPOSE_SERVICE $SB_SHELL"
+  echo ""
   docker compose -f $docker_compose_file_path exec $SB_COMPOSE_SERVICE $SB_SHELL
   if [ $? -ne 0 ]; then
-    echo "$SCRIPT_NAME: Failed to start shell session"
+    echo "$SCRIPT_NAME: Error- failed to start shell session"
     exit 1
   fi
 
@@ -655,6 +871,24 @@ if [ $# -gt 0 ]; then
         sandbox=$1
         shell $sandbox
 				;;        
+		stop)
+				cmd_parser="$(getoptions parser_definition_stop)"
+        eval "$cmd_parser"
+        sandbox=$1
+        stop $sandbox
+				;;     
+		start)
+				cmd_parser="$(getoptions parser_definition_start)"
+        eval "$cmd_parser"
+        sandbox=$1
+        start $sandbox
+				;;             
+		compose)
+				cmd_parser="$(getoptions parser_definition_compose)"
+        eval "$cmd_parser"
+        sandbox=$1
+        compose $sandbox
+				;;                         
 
 		--) # no subcommand, arguments only
 	esac
