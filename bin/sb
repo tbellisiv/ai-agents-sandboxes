@@ -32,8 +32,11 @@ parser_definition() {
 	cmd new       -- "Creates a new sandbox.               'sb new     --help' for help"
 	cmd start     -- "Starts a sandbox                     'sb start   --help' for help"
 	cmd stop      -- "Refreshes sandbox configuration      'sb stop    --help' for help"
+	cmd ps        -- "Displays sandbox status              'sb ps      --help' for help"
+	cmd ls        -- "Displays sandbox status              'sb ps      --help' for help"
   cmd shell     -- "Starts a terminal shell in a sandbox 'sb shell   --help' for help"
-  cmd compose   -- "Runa docker compose command          'sb compose --help' for help"
+	cmd sync      -- "Refreshes sandbox configuration      'sb sync   --help' for help"
+    cmd compose   -- "Runa docker compose command          'sb compose --help' for help"
 }
 
 parser_definition_new() {
@@ -49,10 +52,10 @@ parser_definition_new() {
   param  template      -t    --template-id      validate:'template_regex "^[a-zA-Z](-|_|[a-zA-z]|[0-9]$)*"'    -- "The ID of the template to use for the sandbox."
   msg -- '                              If not specified, looks for a default template ID in the following locations (in order):'
   msg -- '                                  - $SB_PROJECT_DEFAULT_TEMPLATE_ID in sb-project.env'
-  msg -- '                                  - $SB_USER_DEFAULT_TEMPLATE_ID in sb-user.env'
+  msg -- '                                  - $SB_USER_DEFAULT_TEMPLATE_ID in user.env'
   msg -- '                                  - $SB_SYSTEM_DEFAULT_TEMPLATE_ID in sb-system.env'
   msg -- ''
-	#param   sandbox       -s    --sandbox-id       validate:'sandbox_regex "^[a-zA-Z](-|_|[a-zA-z]|[0-9]$)*"'     -- "The sandbox ID. A meaningful but short identifier for the sandbox. Defaults to 'default'."
+	param   sandbox_clone -c    --sandbox-clone                                                                                  -- "The ID of an existing sandbox in the project. The configuration of the existing project will be duplicated in the new project."
 	param   project_path  -p    --project-path                                                                                   -- "The path to the project directory (the ".sb" directory). If not specified, $SCRIPT_NAME will attempt to find the path based on the current directory"
   msg -- ''
 	disp    :usage        -h    --help
@@ -63,7 +66,6 @@ parser_definition_shell() {
 	setup   REST error:error_init help:usage abbr:true -- "Usage: $SCRIPT_NAME shell [<sandbox>] [<options>]"
 	msg -- '' 'Starts a sandbox (if not running)'
 	msg -- 'Options:'
-	#param   sandbox       -s    --sandbox-id      init:="default" validate:'sandbox_regex "^[a-zA-Z](-|_|[a-zA-z]|[0-9]$)*"'     -- "The sandbox ID. A meaningful but short identifier for the sandbox. Defaults to 'default'."
 	param   project_path  -p    --project-path                                                                                   -- "The path to the project directory (the ".sb" directory). If not specified, $SCRIPT_NAME will attempt to find the path based on the current directory"
 	disp    :usage        -h    --help
 }
@@ -72,8 +74,32 @@ parser_definition_stop() {
 	setup   REST error:error_init help:usage abbr:true -- "Usage: $SCRIPT_NAME stop [<sandbox>] [<options>]"
 	msg -- '' 'Stops a sandbox (if running)'
 	msg -- 'Options:'
-	#param   sandbox       -s    --sandbox-id      init:="default" validate:'sandbox_regex "^[a-zA-Z](-|_|[a-zA-z]|[0-9]$)*"'     -- "The sandbox ID. A meaningful but short identifier for the sandbox. Defaults to 'default'."
 	param   project_path  -p    --project-path                                                                                   -- "The path to the project directory (the ".sb" directory). If not specified, $SCRIPT_NAME will attempt to find the path based on the current directory"
+	disp    :usage        -h    --help
+}
+
+parser_definition_sync() {
+	setup   REST error:error_init help:usage abbr:true -- "Usage: $SCRIPT_NAME compose [<sandbox>] [<options>]"
+	msg -- '' 'Refreshes sandbox configuration and image'
+	msg -- 'Options:'
+  
+	param   project_path  -p    --project-path                                                                                    -- "The path to the project directory (the ".sb" directory). If not specified, $SCRIPT_NAME will attempt to find the path based on the current directory"
+	disp    :usage        -h    --help
+}
+
+parser_definition_ps() {
+	setup   REST error:error_init help:usage abbr:true -- "Usage: $SCRIPT_NAME compose [<sandbox>] [<options>]"
+	msg -- '' 'Displays sandbox status'
+	msg -- 'Options:'
+	param   project_path  -p    --project-path                                                                                    -- "The path to the project directory (the ".sb" directory). If not specified, $SCRIPT_NAME will attempt to find the path based on the current directory"
+	disp    :usage        -h    --help
+}
+
+parser_definition_ls() {
+	setup   REST error:error_init help:usage abbr:true -- "Usage: $SCRIPT_NAME compose [<sandbox>] [<options>]"
+	msg -- '' 'Lists all sandboxes in the project'
+	msg -- 'Options:'
+	param   project_path  -p    --project-path                                                                                    -- "The path to the project directory (the ".sb" directory). If not specified, $SCRIPT_NAME will attempt to find the path based on the current directory"
 	disp    :usage        -h    --help
 }
 
@@ -82,7 +108,6 @@ parser_definition_compose() {
 	msg -- '' 'Runs a "docker compose" command against a sandbox'
 	msg -- 'Options:'
 	param   cmd            -c    --command                                                                                        -- "(Required) The command to run"
-  #param   sandbox       -s    --sandbox-id      init:="default" validate:'sandbox_regex "^[a-zA-Z](-|_|[a-zA-z]|[0-9]$)*"'     -- "The sandbox ID. A meaningful but short identifier for the sandbox. Defaults to 'default'."
 	param   project_path  -p    --project-path                                                                                    -- "The path to the project directory (the ".sb" directory). If not specified, $SCRIPT_NAME will attempt to find the path based on the current directory"
 	disp    :usage        -h    --help
 }
@@ -155,12 +180,12 @@ get_default_sandbox_id() {
 
   #Read the user's global defaults (if present)
   SB_USER_ENV_PATH=
-  if [[ -v XDG_CONFIG_HOME && -f "$XDG_CONFIG_HOME/sb-user.env" ]]; then
-    SB_USER_ENV_PATH="$XDG_CONFIG_HOME/sb-user.env"
-  elif [ -f "$HOME/.config/sb/sb-user.env" ]; then
-    SB_USER_ENV_PATH="$HOME/.config/sb/sb-user.env"
-  elif [ -f "$HOME/.sb/sb-user.env" ]; then
-    SB_USER_ENV_PATH="$$HOME/.sb/sb-user.env"
+  if [[ -v XDG_CONFIG_HOME && -f "$XDG_CONFIG_HOME/user.env" ]]; then
+    SB_USER_ENV_PATH="$XDG_CONFIG_HOME/user.env"
+  elif [ -f "$HOME/.config/sb/user.env" ]; then
+    SB_USER_ENV_PATH="$HOME/.config/sb/user.env"
+  elif [ -f "$HOME/.sb/user.env" ]; then
+    SB_USER_ENV_PATH="$$HOME/.sb/user.env"
   fi
 
   SB_USER_DEFAULT_SANDBOX_ID=
@@ -219,14 +244,14 @@ get_sandbox_cmd_conf()
   #  $sandbox
   #  $project_path
 
-  #validate sandbox ID format (if specified)
-  regex='^[a-zA-Z](-|_|[a-zA-z]|[0-9]$)*'
-  if [ -n "$sandbox" ]; then
-    awk -v s="$sandbox" -v r="$regex" 'BEGIN{exit match(s, r)==0}'
-    if [ $? -ne 0 ]; then
-      echo "$SCRIPT_NAME: Error: The specified sandbox ID ('$sandbox') is not a valid identifier (does not match regex '$regex')"
-      exit 1
-    fi
+  #Read the user's global defaults (if present)
+  user_env_root=
+  if [[ -v XDG_CONFIG_HOME && -d "$XDG_CONFIG_HOME/sb" ]]; then
+    user_env_root="$XDG_CONFIG_HOME/sb"
+  elif [ -d "$HOME/.config/sb" ]; then
+    user_env_root="$HOME/.config/sb"
+  elif [ -f "$HOME/.sb" ]; then
+    user_env_root="$HOME/.sb"
   fi
 
   # get the path to the project
@@ -265,6 +290,16 @@ get_sandbox_cmd_conf()
   # source sb-project.env
   SB_PROJECT_ID=
 	source $project_env_path
+
+  #validate sandbox ID format (if specified)
+  regex='^[a-zA-Z](-|_|[a-zA-z]|[0-9]$)*'
+  if [ -n "$sandbox" ]; then
+    awk -v s="$sandbox" -v r="$regex" 'BEGIN{exit match(s, r)==0}'
+    if [ $? -ne 0 ]; then
+      echo "$SCRIPT_NAME: Error: The specified sandbox ID ('$sandbox') is not a valid identifier (does not match regex '$regex')"
+      exit 1
+    fi
+  fi
 
   #validate the sandbox path
 	sandbox_path=$project_path_abs/sandboxes/$sandbox
@@ -313,7 +348,7 @@ get_sandbox_cmd_conf()
     exit 1
   fi
 
-  sb_conf="__sb_project_root=$project_path_abs __project_id=$SB_PROJECT_ID __sandbox_id=$sandbox __sandbox_root=$sandbox_path __compose_file=$docker_compose_file_path __compose_service=$SB_COMPOSE_SERVICE __shell=$SB_SHELL"
+  sb_conf="__user_env_root=$user_env_root __project_root=$project_path_abs __project_id=$SB_PROJECT_ID __sandbox_id=$sandbox __sandbox_root=$sandbox_path __compose_file=$docker_compose_file_path __compose_service=$SB_COMPOSE_SERVICE __shell=$SB_SHELL"
 
   echo -n "$sb_conf"
 }
@@ -346,8 +381,86 @@ stop() {
     if [ $? -ne 0 ]; then
       echo "$SCRIPT_NAME: Error- failed to stop sandbox"
       exit 1
-    fi
+    fi	
   fi
+
+}
+
+ps() {
+
+  #get the sandbox config
+  cmd_conf=$(get_sandbox_cmd_conf)
+  eval "$cmd_conf"
+  if [ $? -ne 0 ]; then
+    exit 1
+  fi
+
+  echo "$SCRIPT_NAME: Sandbox: $__sandbox_root"
+	echo "$SCRIPT_NAME: Running: docker compose $__compose_file ps $__compose_service --format 'State: {{{.State}}'"
+	echo ""
+	state=$(docker compose -f $__compose_file ps $__compose_service --format "State: {{.State}}")
+	if [ $? -ne 0 ]; then
+		echo "$SCRIPT_NAME: Error- docker compose ps failed"
+		exit 1
+	fi
+
+	if [ -z "$state" ]; then
+		echo "State: not-running"
+	fi
+
+	# echo "$SCRIPT_NAME: Running: docker compose $__compose_file ps $__compose_service --format 'State: {{{.State}}'"
+	# echo ""
+  # echo "$SCRIPT_NAME: Running: docker compose -f $__compose_file ps"
+	# status=$(docker compose -f $__compose_file ps $__compose_service --format "State: {{.State}}")
+  # echo ""
+  # docker compose -f $__compose_file ps
+}
+
+ls() {
+
+	# get the path to the project
+	if [ -z "$project_path" ]; then
+		#search for project root
+		project_path=$(dir_search_tree_up_by_dirname ".sb") 
+		if [ -z "$project_path" ]; then
+			echo  "$SCRIPT_NAME: Error: Unable to find sandbox project root directory. 'cd' into the directory tree containing the sandbox project or run 'sb-project init' to create a project"
+			exit 1
+		fi
+	else
+		if [ ! -d "$project_path" ]; then
+			echo "$SCRIPT_NAME: Error: Sandbox project root directory '$project_path' does not exist"
+			exit 1
+		fi
+	fi
+
+  # get the path to sb-project.env
+	project_path_abs=$(readlink -f $project_path)
+
+	project_env_path=$project_path/sb-project.env
+	if [ ! -f "$project_env_path" ]; then
+		echo "$SCRIPT_NAME: Error: Sandbox project configuration file '$project_path_abs' does not exist"
+		exit 1
+	fi
+
+	sandboxes_root_path=$project_path_abs/sandboxes
+	if [ ! -d "$sandboxes_root_path" ]; then
+		echo "$SCRIPT_NAME: Error: Sandbox root directory '$sandboxes_root_path' does not exist"
+		exit 1
+	fi
+
+	find $sandboxes_root_path -maxdepth 1 -mindepth 1 -type d -printf '%f\n'
+
+}
+
+sync() {
+
+  #get the sandbox config
+  cmd_conf=$(get_sandbox_cmd_conf)
+  eval "$cmd_conf"
+  if [ $? -ne 0 ]; then
+    exit 1
+  fi
+
 }
 
 compose() {
@@ -404,7 +517,13 @@ start() {
       echo "$SCRIPT_NAME: Error: Failed to start sandbox"
       exit 1
     fi
-  fi
+
+		docker compose -f $__compose_file ps $__compose_service --format "State: {{.State}}"
+		if [ $? -ne 0 ]; then
+			echo "$SCRIPT_NAME: Error- docker compose ps failed"
+			exit 1
+		fi
+	fi
 }
 
 shell() {
@@ -558,12 +677,12 @@ new_sandbox() {
 
 	#Read the user's global defaults (if present)
   SB_USER_ENV_PATH=
-  if [[ -v XDG_CONFIG_HOME && -f "$XDG_CONFIG_HOME/sb-user.env" ]]; then
-    SB_USER_ENV_PATH="$XDG_CONFIG_HOME/sb-user.env"
-  elif [ -f "$HOME/.config/sb/sb-user.env" ]; then
-    SB_USER_ENV_PATH="$HOME/.config/sb/sb-user.env"
-  elif [ -f "$HOME/.sb/sb-user.env" ]; then
-    SB_USER_ENV_PATH="$$HOME/.sb/sb-user.env"
+  if [[ -v XDG_CONFIG_HOME && -f "$XDG_CONFIG_HOME/user.env" ]]; then
+    SB_USER_ENV_PATH="$XDG_CONFIG_HOME/user.env"
+  elif [ -f "$HOME/.config/sb/user.env" ]; then
+    SB_USER_ENV_PATH="$HOME/.config/sb/user.env"
+  elif [ -f "$HOME/.sb/user.env" ]; then
+    SB_USER_ENV_PATH="$$HOME/.sb/user.env"
   fi
 
 	SB_USER_DEFAULT_TEMPLATE_ID=
@@ -882,7 +1001,24 @@ if [ $# -gt 0 ]; then
         eval "$cmd_parser"
         sandbox=$1
         start $sandbox
-				;;             
+				;;        
+		ps)
+				cmd_parser="$(getoptions parser_definition_ps)"
+        eval "$cmd_parser"
+        sandbox=$1
+        ps $sandbox
+				;;    
+		ls)
+				cmd_parser="$(getoptions parser_definition_ls)"
+        eval "$cmd_parser"
+        ls
+				;;   		 								
+		sync)
+				cmd_parser="$(getoptions parser_definition_sync)"
+        eval "$cmd_parser"
+        sandbox=$1
+        sync $sandbox
+				;;  				 				     
 		compose)
 				cmd_parser="$(getoptions parser_definition_compose)"
         eval "$cmd_parser"
