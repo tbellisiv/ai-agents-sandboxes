@@ -10,7 +10,12 @@ TEMPLATE_HOOK=$(basename $SCRIPT_NAME ".sh")
 
 SCRIPT_MSG_PREFIX="[template=$TEMPLATE_ID operation=$TEMPLATE_OPERATION hook=$TEMPLATE_HOOK]"
 
-new_sandbox_path=$1
+if [ -z "$1" ]; then
+  echo "${SCRIPT_MSG_PREFIX}: Usage $SCRIPT_NAME <sandbox-path>"
+  exit 1
+fi
+
+sandbox_path=$1
 
 template_image_path=$TEMPLATE_DIR/image
 if [ ! -d "${template_image_path}" ]; then

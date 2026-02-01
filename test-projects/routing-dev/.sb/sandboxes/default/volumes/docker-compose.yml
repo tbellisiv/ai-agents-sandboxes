@@ -8,6 +8,7 @@ services:
     sandbox:
         container_name: "${SB_COMPOSE_PROJECT_NAME}"
         image: ${SB_IMAGE:?This is likely a misconfiguration issue.}
+        command: ${SB_COMPOSE_VOLUME_INIT_ROOT}/init.sh
         user: "${SB_LOGIN_USER_ID:?This is likely a misconfiguration issue.}:${SB_LOGIN_GROUP_ID:?This is likely a misconfiguration issue.}"
         # cap_drop:
         #     - ALL
@@ -23,12 +24,15 @@ services:
         pids_limit: 500 # prevent fork bombs
         mem_limit: 8G
         ipc: private # isolate IPC namespace
+
         tmpfs:
             - /tmp:size=1G # ephemeral /tmp
+
         ulimits:
             nofile:
                 soft: 65536
                 hard: 65536
+
         environment:
             - TZ=${SB_PROJECT_TZ}
             - SB_PROMPT_SANDBOX=${SB_COMPOSE_PROJECT_NAME}
@@ -41,7 +45,7 @@ services:
             - ${SB_COMPOSE_LOGIN_ENV_PATH}
             - ${SB_COMPOSE_USER_ENV_PATH}
             - ${SB_COMPOSE_USER_SECRETS_ENV_PATH}
-
+    
         volumes:
             # workspace files
             - workspace_main:/workspace/main:delegated

@@ -1,35 +1,40 @@
 #!/bin/bash
 
-set -e
+SCRIPT_DIR=$(dirname $0)
+SCRIPT_NAME=$(basename $0)
 
-NVM_VERSION=v0.40.3
+init_status=0
 
-NODE_VERSION=v24.12.0
+# ----- Init: nvm/node ------
+$SCRIPT_DIR/nvm-init.sh
+nvm_init_status=$?
 
-curl -s -o- https://raw.githubusercontent.com/nvm-sh/nvm/$NVM_VERSION/install.sh | bash
+# ----- Init: Claude
+$SCRIPT_DIR/claude-init.sh
+claude_init_status=$?
 
-export NVM_DIR="$HOME/.nvm"
+echo ""
+if [ $nvm_init_status -ne 0 ]; then
+  init_status=1
+  echo "$SCRIPT_NAME: Warning- nvm/node initialization failed"
+  echo ""
+fi
+if [ $claude_init_status -ne 0 ]; then
+  init_status=1
+  echo "$SCRIPT_NAME: Warning- Claude initialization failed"
+  echo ""
+fi
 
-[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"  # This loads nvm
-[ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"  # This loads nvm bash_completion
+if [ $init_status -ne 0 ]; then
+  echo "$SCRIPT_NAME: Sandbox initialization completed with error(s)"
+  echo ""
+  echo "$SCRIPT_NAME: Run 'sb logs ${SB_SANDBOX_ID}' to view logs"
+else
+  echo "$SCRIPT_NAME: Sandbox initialization successful"
+  echo ""
+  echo "$SCRIPT_NAME: Run 'sb shell ${SB_SANDBOX_ID}' to start a shell session"
+fi
 
-nvm install $NODE_VERSION
+echo ""
 
-cat <<EOF >>$HOME/.bashrc
-export NVM_DIR="$HOME/.nvm"
-[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"  # This loads nvm
-[ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"  # This loads nvm bash_completion
-nvm use $NODE_VERSION
-EOF
 
-# corepack install
-npm install -g corepack
-
-#-- pnpm install (packageManager in package.json)
-corepack enable
-
-#NVM
-export NVM_DIR="$HOME/.nvm"
-[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"  # This loads nvm
-[ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"  # This loads nvm bash_completion
-nvm use $NODE_VERSION
