@@ -8,6 +8,8 @@ services:
         image: ${SB_IMAGE:?This is likely a misconfiguration issue.}
         user: "${SB_LOGIN_USER_ID:?This is likely a misconfiguration issue.}:${SB_LOGIN_GROUP_ID:?This is likely a misconfiguration issue.}"
         command: /sandbox/init/init.sh
+        working_dir: /workspace/${SB_WORKSPACE_MAIN_ROOT_DIRNAME}
+        hostname: ${COMPOSE_PROJECT_NAME}
         # cap_drop:
         #     - ALL
         # cap_add:
@@ -33,6 +35,7 @@ services:
             - SB_PROMPT_SANDBOX=${COMPOSE_PROJECT_NAME}
             - SB_PROJECT_ID=${SB_PROJECT_ID:?This is likely a misconfiguration issue.}
             - SB_SANDBOX_ID=${SB_SANDBOX_ID:?This is likely a misconfiguration issue.}
+            - LOCAL_WORKSPACE_MAIN_ROOT=/workspace/${SB_WORKSPACE_MAIN_ROOT_DIRNAME}
             - NODE_OPTIONS=--max-old-space-size=4096
 
         env_file:
@@ -43,7 +46,7 @@ services:
 
         volumes:
             # workspace files
-            - workspace_main:/workspace/main:delegated
+            - workspace_main:/workspace/${SB_WORKSPACE_MAIN_ROOT_DIRNAME}:delegated
 
             #create "shadow" mount to an empty directory to hide the SB project files
             - workspace_sb_shadow:/workspace/main/.sb

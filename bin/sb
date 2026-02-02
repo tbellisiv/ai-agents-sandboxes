@@ -848,16 +848,17 @@ sync_env() {
 		echo "$SCRIPT_NAME: Generating sandbox Docker Compose .env : '$__compose_env_path'"
 	fi
 
-	# Add project/workspace env
-	SB_PROJECT_ROOT=$__project_root
-	SB_WORKSPACE_MAIN_ROOT=$(readlink -f $__project_root/..)
 
 	env=()
 	lines=()	
 
-	#project-level env
-	env+=("SB_PROJECT_ROOT=$__project_root" "SB_WORKSPACE_MAIN_ROOT=$(readlink -f $__project_root/..)")
-	env_files="$SB_PROJECT_ROOT/sb-project.env"
+	#add computed workspace env
+	workspace_main_root=$(readlink -f $__project_root/..)
+ 	env+=("SB_WORKSPACE_MAIN_ROOT=$workspace_main_root" "SB_WORKSPACE_MAIN_ROOT_DIRNAME=$(basename $workspace_main_root)")
+
+	#project env
+	env+=("SB_PROJECT_ROOT=$__project_root")
+	env_files="$__project_root/sb-project.env"
 	for f in $env_files; do
 		if [ -f "$f" ]; then
 			mapfile -t lines < $f
@@ -892,7 +893,10 @@ sync_env() {
 	echo "# DO NOT MODIFY!!!" >> $__compose_env_path
 	echo "# Run 'sb sync' to update." >> $__compose_env_path
 	echo "" >> $__compose_env_path
+
+	#add docker compose project name
 	echo "COMPOSE_PROJECT_NAME=\"${SB_PROJECT_PREFIX:-}${SB_PROJECT_ID}-${__sandbox_id}\"" >> $__compose_env_path
+	
 	echo "Done"
 	printf "%s\n" "${env[@]}" >> $__compose_env_path
 	if [ $? -ne 0 ]; then

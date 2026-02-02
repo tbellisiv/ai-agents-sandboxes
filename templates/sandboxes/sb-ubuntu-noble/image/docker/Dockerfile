@@ -29,7 +29,8 @@ RUN DEBIAN_FRONTEND=noninteractive apt-get update && apt-get upgrade -y && apt-g
     vim \
     wget \
     # required to compile opensnitch-controller:
-    protobuf-compiler
+    protobuf-compiler \
+    bash-completion
 
 #-- Initialize workspace mount dir
 ENV WORKSPACE_MAIN_ROOT=/workspace/main
@@ -91,7 +92,8 @@ RUN . /sandbox/user/sb-login.env && mv -f /tmp/.bashrc $SB_LOGIN_USER_HOME && ch
 # RUN echo '#!/bin/sh\necho "ERROR: npm is disabled in this devcontainer. Use pnpm instead."\nexit 1' > /usr/local/bin/npm \
 #     && chmod +x /usr/local/bin/npm
 
-WORKDIR /workspace/main
+#default- this is changed in the docker-compose.yml
+WORKDIR /workspace/
 
 ENV SHELL=/bin/bash
 ENV EDITOR=nano
