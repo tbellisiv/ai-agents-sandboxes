@@ -3,6 +3,21 @@
 SCRIPT_DIR=$(dirname $0)
 SCRIPT_NAME=$(basename $0)
 
+#create symlink for $HOME/.claude to /sandbox/user/.claude
+if [ ! -d "$HOME/.claude" ]; then
+  echo "$SCRIPT_NAME: Creating symlink: $HOME/.claude --> /sandbox/user/.claude (volume mount)"
+  mkdir -p /sandbox/user/.claude
+  ln -s "$HOME/.claude" /sandbox/user/.claude
+fi
+
+#create empty file and symlink for $HOME/.claude.json
+if [[ ! -f "$HOME/.claude.json" && ! -f /sandbox/user/.claude.json ]]; then
+  echo "$SCRIPT_NAME: Creating symlink to empty file: sb $HOME/.claude.json --> /sandbox/user/.claude (volume mount)"
+  touch /sandbox/user/.claude.json
+  ln -s "$HOME/.claude.json" /sandbox/user/.claude.json
+fi
+
+
 #Need to prevent CC from prompting to authenticate- even though CLAUDE_CODE_OAUTH_TOKEN/ANTHROPIC_API_KEY is defined
 if [[ (-n "$CLAUDE_CODE_OAUTH_TOKEN" || -n "$ANTHROPIC_API_KEY") && ! -f HOME/.claude.json ]]; then
     echo '{"hasCompletedOnboarding": true}' > /$HOME/.claude.json
@@ -10,7 +25,7 @@ fi
 
 command -v claude &> /dev/null
 if [ $? -ne 0 ]; then
-  
+
   echo ""
   echo "$SCRIPT_NAME: Installing Claude"
   echo ""
