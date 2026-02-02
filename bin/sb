@@ -421,8 +421,16 @@ get_sandbox_cmd_conf()
   fi
 
 	compose_env_path=$sandbox_path/.env
-
-  sb_conf="__user_env_root=$user_env_root __project_root=$project_path_abs __project_id=$SB_PROJECT_ID __sandbox_id=$sandbox __sandbox_root=$sandbox_path __compose_file=$docker_compose_file_path __compose_env_path=$compose_env_path __compose_service=$SB_COMPOSE_SERVICE __shell=$SB_SHELL"
+	
+  sb_conf="__user_env_root=$user_env_root"
+	sb_conf="${sb_conf} __project_root=$project_path_abs"
+	sb_conf="${sb_conf} __project_id=$SB_PROJECT_ID"
+	sb_conf="${sb_conf} __sandbox_id=$sandbox"
+	sb_conf="${sb_conf} __sandbox_root=$sandbox_path"
+	sb_conf="${sb_conf} __compose_file=$docker_compose_file_path"
+	sb_conf="${sb_conf} __compose_env_path=$compose_env_path"
+	sb_conf="${sb_conf} __compose_service=$SB_COMPOSE_SERVICE"
+	sb_conf="${sb_conf} __shell=$SB_SHELL"
 
   echo -n "$sb_conf"
 }
@@ -732,8 +740,19 @@ sandbox_sync() {
 	echo ""
 
 	sync_env
+  if [ $? -ne 0 ]; then
+    exit 1
+  fi  
 
 	sync_image
+	if [ $? -ne 0 ]; then
+    exit 1
+  fi  
+
+	sync_modules
+  if [ $? -ne 0 ]; then
+    exit 1
+  fi  
 
 	echo ""
 	echo "$SCRIPT_NAME: Rebuilding sandbox"
@@ -818,6 +837,159 @@ sync_image() {
 	echo ""
 	echo "$SCRIPT_NAME: Sandbox image rebuild complete"
 
+}
+
+sync_modules() {
+
+  #get the sandbox config
+  cmd_conf=$(get_sandbox_cmd_conf)
+  if [ $? -ne 0 ]; then
+    if [ -n "$cmd_conf" ]; then
+      echo "$cmd_conf"
+    fi
+    exit 1
+  fi  
+  eval "$cmd_conf"
+
+	echo ""
+
+	# source sb-system.env to read SB_SYSTEM_DEFAULT_MODULES
+	sb_install_root="$(readlink -f $SCRIPT_DIR/..)"
+	sb_env_root=$sb_install_root/env
+	sb_system_env_path=$sb_env_root/sb-system.env
+	if [ -f $sb_system_env_path ]; then
+		source $sb_system_env_path
+	fi
+
+	IFS_CURRENT="$IFS"
+	IFS=':'
+
+	#source sb-compose.env to get SB_COMPOSE_VOLUME_MODULES_ROOT
+	sb_compose_env_path="$(readlink -f $__sandbox_root/sb-compose.env)"
+	if [ -f $sb_compose_env_path ]; then
+		source $sb_compose_env_path
+		if [ -z "$SB_COMPOSE_VOLUME_MODULES_ROOT" ]; then
+			echo "$SCRIPT_NAME: Unable to sync sandbox modules- SB_COMPOSE_VOLUME_MODULES_ROOT is not defined in file '$sb_compose_env_path'"
+			exit 1
+		fi
+	else
+		echo "$SCRIPT_NAME: Unable to sync sandbox modules- file '$sb_compose_env_path' does not exist"
+		exit 1
+	fi
+
+	#verify SB_COMPOSE_VOLUME_MODULES_ROOT directory exists
+	if [ ! -d "$SB_COMPOSE_VOLUME_MODULES_ROOT" ]; then
+		echo "$SCRIPT_NAME: Aborting- sandbox module install directory '$SB_COMPOSE_VOLUME_MODULES_ROOT' does not exist"
+		exit 1
+	fi
+
+	#sanit check: verify SB_COMPOSE_VOLUME_MODULES_ROOT is within the sandbox volumes directory tree
+	if [[ "$SB_COMPOSE_VOLUME_MODULES_ROOT" != "$__sandbox_root"/volumes/* ]]; then
+		echo "$SCRIPT_NAME: Aborting- sandbox module install directory '$SB_COMPOSE_VOLUME_MODULES_ROOT' is not within the sandbox directory tree"
+		exit 1
+	fi
+
+	module_dirs=()
+	module_ids=()
+
+	# source sb-sandbox.env to read SB_MODULES/SB_MODULE_SEARCH_PATH
+	if [ -f $__sandbox_root/sb-sandbox.env ]; then
+
+		source $__sandbox_root/sb-sandbox.env
+
+		if [ ${#SB_MODULE_SEARCH_PATH[@]} -ne 0 ]; then
+			read -ra dirs <<< "$SB_MODULE_SEARCH_PATH"
+			module_dirs+=("${dirs[@]}")
+		fi
+
+		if [ ${#SB_MODULES[@]} -ne 0 ]; then
+			module_ids+=("${SB_MODULES[@]}")
+		fi
+
+	fi
+
+	# source sb-project.env to read SB_PROJECT_DEFAULT_MODULES/SB_PROJECT_MODULE_SEARCH_PATH
+	if [ -f $__project_root/sb-project.env ]; then
+		
+		source $__project_root/sb-project.env
+
+		if [ ${#SB_PROJECT_MODULE_SEARCH_PATH[@]} -ne 0 ]; then
+			read -ra dirs <<< "$SB_PROJECT_MODULE_SEARCH_PATH"
+			module_dirs+=("${dirs[@]}")
+		fi
+
+		if [ ${#SB_PROJECT_DEFAULT_MODULES[@]} -ne 0 ]; then
+			module_ids+=("${SB_PROJECT_DEFAULT_MODULES[@]}")
+		fi
+
+	fi
+
+	# add system module_ids dir
+	if [ -d $sb_install_root/modules ]; then
+		module_dirs+=("$sb_install_root/modules")
+	fi
+	
+	# source user.env to read SB_USER_DEFAULT_MODULES/SB_USER_MODULE_SEARCH_PATH
+	if [ -f $__user_env_root/user.env ]; then
+		
+		source $__user_env_root/user.env
+
+		if [ ${#SB_USER_MODULE_SEARCH_PATH[@]} -ne 0 ]; then
+			read -ra dirs <<< "$SB_USER_MODULE_SEARCH_PATH"
+			module_dirs+=("${dirs[@]}")
+		fi
+
+		if [ ${#SB_USER_DEFAULT_MODULES[@]} -ne 0 ]; then
+			module_ids+=("${SB_USER_DEFAULT_MODULES[@]}")
+		fi
+
+	fi
+
+	if [[ ${#module_ids[@]} -ne 0 && ${#module_dirs[@]} -ne 0 ]]; then
+
+		existing_modules=$(find $SB_COMPOSE_VOLUME_MODULES_ROOT -maxdepth 1 -mindepth 1 -type d -printf '%f ')
+
+		if [ -n "$existing_modules" ]; then
+			echo "$SCRIPT_NAME: Removing installed sandbox modules: $existing_modules"
+			rm -rf $SB_COMPOSE_VOLUME_MODULES_ROOT/*
+			if [ $? -ne 0 ]; then
+				echo "$SCRIPT_NAME: Aborting- failed to remove installed modules"
+				exit 1
+			fi
+		fi
+		echo ""
+		echo "$SCRIPT_NAME: Installing ${#module_ids[@]} sandbox module(s)"
+		echo ""
+		echo "$SCRIPT_NAME: Module search path: ${module_dirs[@]}"
+		echo ""
+
+		for mod_id in "${module_ids[@]}"; do
+
+			mod_source_path=
+			for dir in "${module_dirs[@]}"; do
+				if [ -d "$dir/$mod_id" ]; then
+					mod_source_path="$dir/$mod_id"
+					break
+				fi
+			done
+
+			if [ -z "$mod_source_path" ]; then
+				echo "$SCRIPT_NAME: Aborting- failed to resolve source path for module '$mod_id' in the module search path (${#module_dirs[@]})"
+				exit 1
+			fi
+
+			echo "$SCRIPT_NAME: Installing module '$mod_id' : $mod_source_path --> $SB_COMPOSE_VOLUME_MODULES_ROOT/$mod_id"
+			cp -rf "$mod_source_path" "$SB_COMPOSE_VOLUME_MODULES_ROOT/$mod_id"
+			if [ $? -ne 0 ]; then
+				echo "$SCRIPT_NAME: Aborting- install of '$mod_id' in the module search path "
+				exit 1
+			fi
+
+		done
+
+	fi
+
+	IFS="$IFS_CURRENT"
 }
 
 sync_env() {
@@ -912,8 +1084,6 @@ sync_env() {
   elif [ -f "$HOME/.sb" ]; then
     user_env_root="$HOME/.sb"
   fi
-
-echo "user_env_root=$user_env_root"
 
 	if [ -n "$user_env_root" ]; then
 		global_user_env_path=$(readlink -f $user_env_root/user.env)
@@ -1323,6 +1493,12 @@ sandbox_new() {
 		exit 1
 	fi
 
+	sync_modules
+  if [ $? -ne 0 ]; then
+    exit 1
+  fi  
+
+
 	source $sandbox_env_path
 
 	sandbox_compose_env_path=$sandbox_dest_path/sb-compose.env
@@ -1344,17 +1520,6 @@ sandbox_new() {
 		exit 1
 	fi
 
-	# echo ""sb s
-	# echo "$SCRIPT_NAME: Building sandbox"
-	# echo ""
-	# echo "$SCRIPT_NAME: Running: docker compose -f $sandbox_compose_env_path create -y"
-
-	# docker compose -f $sandbox_compose_env_path create -y
-	# if [ $? -ne 0 ]; then
-	# 	echo "$SCRIPT_NAME: Sandbox build failed"
-	# 	exit 1
-	# fi
-
 	cat <<EOF
 
 Sandbox creation complete."
@@ -1369,7 +1534,15 @@ Next Steps:
 	
     or:
 	
-    'cd $sandbox_dest_path && docker compose start'
+    'cd $sandbox_dest_path && docker compose up -d'
+
+  - Stop the sandbox. Run:
+
+    'sb stop' 
+	
+    or:
+	
+    'cd $sandbox_dest_path && docker compose stop'		
 	
   - Start a shell session. Run:
 

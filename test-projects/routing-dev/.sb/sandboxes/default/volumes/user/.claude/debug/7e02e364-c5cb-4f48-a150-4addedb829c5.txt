@@ -1,0 +1,188 @@
+2026-02-02T17:29:19.182Z [DEBUG] Writing through symlink: /home/ubuntu/.claude.json -> /sandbox/user/.claude.json
+2026-02-02T17:29:19.182Z [DEBUG] Writing to temp file: /sandbox/user/.claude.json.tmp.668.1770053359182
+2026-02-02T17:29:19.182Z [DEBUG] Preserving file permissions: 100644
+2026-02-02T17:29:19.184Z [DEBUG] Temp file written successfully, size: 116 bytes
+2026-02-02T17:29:19.184Z [DEBUG] Applied original permissions to temp file
+2026-02-02T17:29:19.184Z [DEBUG] Renaming /sandbox/user/.claude.json.tmp.668.1770053359182 to /sandbox/user/.claude.json
+2026-02-02T17:29:19.184Z [DEBUG] File /sandbox/user/.claude.json written atomically
+2026-02-02T17:29:19.190Z [DEBUG] Writing through symlink: /home/ubuntu/.claude.json -> /sandbox/user/.claude.json
+2026-02-02T17:29:19.190Z [DEBUG] Writing to temp file: /sandbox/user/.claude.json.tmp.668.1770053359190
+2026-02-02T17:29:19.190Z [DEBUG] Preserving file permissions: 100644
+2026-02-02T17:29:19.191Z [DEBUG] Temp file written successfully, size: 164 bytes
+2026-02-02T17:29:19.191Z [DEBUG] Applied original permissions to temp file
+2026-02-02T17:29:19.191Z [DEBUG] Renaming /sandbox/user/.claude.json.tmp.668.1770053359190 to /sandbox/user/.claude.json
+2026-02-02T17:29:19.191Z [DEBUG] File /sandbox/user/.claude.json written atomically
+2026-02-02T17:29:19.191Z [DEBUG] [init] configureGlobalMTLS starting
+2026-02-02T17:29:19.191Z [DEBUG] [init] configureGlobalMTLS complete
+2026-02-02T17:29:19.191Z [DEBUG] [init] configureGlobalAgents starting
+2026-02-02T17:29:19.191Z [DEBUG] [init] configureGlobalAgents complete
+2026-02-02T17:29:19.192Z [DEBUG] Writing through symlink: /home/ubuntu/.claude.json -> /sandbox/user/.claude.json
+2026-02-02T17:29:19.192Z [DEBUG] Writing to temp file: /sandbox/user/.claude.json.tmp.668.1770053359192
+2026-02-02T17:29:19.192Z [DEBUG] Preserving file permissions: 100644
+2026-02-02T17:29:19.193Z [DEBUG] Temp file written successfully, size: 201 bytes
+2026-02-02T17:29:19.193Z [DEBUG] Applied original permissions to temp file
+2026-02-02T17:29:19.193Z [DEBUG] Renaming /sandbox/user/.claude.json.tmp.668.1770053359192 to /sandbox/user/.claude.json
+2026-02-02T17:29:19.193Z [DEBUG] File /sandbox/user/.claude.json written atomically
+2026-02-02T17:29:19.194Z [DEBUG] Writing through symlink: /home/ubuntu/.claude.json -> /sandbox/user/.claude.json
+2026-02-02T17:29:19.194Z [DEBUG] Writing to temp file: /sandbox/user/.claude.json.tmp.668.1770053359194
+2026-02-02T17:29:19.194Z [DEBUG] Preserving file permissions: 100644
+2026-02-02T17:29:19.195Z [DEBUG] Temp file written successfully, size: 236 bytes
+2026-02-02T17:29:19.195Z [DEBUG] Applied original permissions to temp file
+2026-02-02T17:29:19.195Z [DEBUG] Renaming /sandbox/user/.claude.json.tmp.668.1770053359194 to /sandbox/user/.claude.json
+2026-02-02T17:29:19.195Z [DEBUG] File /sandbox/user/.claude.json written atomically
+2026-02-02T17:29:19.197Z [DEBUG] Writing through symlink: /home/ubuntu/.claude.json -> /sandbox/user/.claude.json
+2026-02-02T17:29:19.197Z [DEBUG] Writing to temp file: /sandbox/user/.claude.json.tmp.668.1770053359197
+2026-02-02T17:29:19.197Z [DEBUG] Preserving file permissions: 100644
+2026-02-02T17:29:19.198Z [DEBUG] Temp file written successfully, size: 272 bytes
+2026-02-02T17:29:19.198Z [DEBUG] Applied original permissions to temp file
+2026-02-02T17:29:19.198Z [DEBUG] Renaming /sandbox/user/.claude.json.tmp.668.1770053359197 to /sandbox/user/.claude.json
+2026-02-02T17:29:19.198Z [DEBUG] File /sandbox/user/.claude.json written atomically
+2026-02-02T17:29:19.199Z [DEBUG] Writing through symlink: /home/ubuntu/.claude.json -> /sandbox/user/.claude.json
+2026-02-02T17:29:19.199Z [DEBUG] Writing to temp file: /sandbox/user/.claude.json.tmp.668.1770053359199
+2026-02-02T17:29:19.199Z [DEBUG] Preserving file permissions: 100644
+2026-02-02T17:29:19.200Z [DEBUG] Temp file written successfully, size: 309 bytes
+2026-02-02T17:29:19.200Z [DEBUG] Applied original permissions to temp file
+2026-02-02T17:29:19.200Z [DEBUG] Renaming /sandbox/user/.claude.json.tmp.668.1770053359199 to /sandbox/user/.claude.json
+2026-02-02T17:29:19.200Z [DEBUG] File /sandbox/user/.claude.json written atomically
+2026-02-02T17:29:19.224Z [DEBUG] Loading skills from: managed=/etc/claude-code/.claude/skills, user=/home/ubuntu/.claude/skills, project=[]
+2026-02-02T17:29:19.225Z [DEBUG] Error log sink initialized
+2026-02-02T17:29:19.227Z [DEBUG] [render] initLayout starting
+2026-02-02T17:29:19.227Z [DEBUG] Layout engine: yoga
+2026-02-02T17:29:19.229Z [DEBUG] Found 0 plugins (0 enabled, 0 disabled)
+2026-02-02T17:29:19.229Z [DEBUG] getPluginSkills: Processing 0 enabled plugins
+2026-02-02T17:29:19.229Z [DEBUG] Total plugin skills loaded: 0
+2026-02-02T17:29:19.229Z [DEBUG] Total plugin commands loaded: 0
+2026-02-02T17:29:19.229Z [DEBUG] Registered 0 hooks from 0 plugins
+2026-02-02T17:29:19.231Z [DEBUG] Loaded 0 unique skills (managed: 0, user: 0, project: 0, legacy commands: 0)
+2026-02-02T17:29:19.231Z [DEBUG] getSkills returning: 0 skill dir commands, 0 plugin skills, 1 bundled skills
+2026-02-02T17:29:19.238Z [DEBUG] [render] initLayout complete
+2026-02-02T17:29:19.242Z [DEBUG] [render] first ink render: 314ms since process start
+2026-02-02T17:29:19.266Z [DEBUG] Install: Starting installation process (force=false, target=undefined)
+2026-02-02T17:29:19.266Z [DEBUG] Install: Calling installLatest(channelOrVersion=latest, forceReinstall=false)
+2026-02-02T17:29:19.315Z [DEBUG] Writing through symlink: /home/ubuntu/.claude.json -> /sandbox/user/.claude.json
+2026-02-02T17:29:19.315Z [DEBUG] Writing to temp file: /sandbox/user/.claude.json.tmp.668.1770053359315
+2026-02-02T17:29:19.315Z [DEBUG] Preserving file permissions: 100644
+2026-02-02T17:29:19.317Z [DEBUG] Temp file written successfully, size: 485 bytes
+2026-02-02T17:29:19.317Z [DEBUG] Applied original permissions to temp file
+2026-02-02T17:29:19.317Z [DEBUG] Renaming /sandbox/user/.claude.json.tmp.668.1770053359315 to /sandbox/user/.claude.json
+2026-02-02T17:29:19.317Z [DEBUG] File /sandbox/user/.claude.json written atomically
+2026-02-02T17:29:19.318Z [DEBUG] Writing through symlink: /home/ubuntu/.claude.json -> /sandbox/user/.claude.json
+2026-02-02T17:29:19.318Z [DEBUG] Writing to temp file: /sandbox/user/.claude.json.tmp.668.1770053359318
+2026-02-02T17:29:19.318Z [DEBUG] Preserving file permissions: 100644
+2026-02-02T17:29:19.320Z [DEBUG] Temp file written successfully, size: 521 bytes
+2026-02-02T17:29:19.320Z [DEBUG] Applied original permissions to temp file
+2026-02-02T17:29:19.320Z [DEBUG] Renaming /sandbox/user/.claude.json.tmp.668.1770053359318 to /sandbox/user/.claude.json
+2026-02-02T17:29:19.320Z [DEBUG] File /sandbox/user/.claude.json written atomically
+2026-02-02T17:29:19.321Z [DEBUG] Writing through symlink: /home/ubuntu/.claude.json -> /sandbox/user/.claude.json
+2026-02-02T17:29:19.321Z [DEBUG] Writing to temp file: /sandbox/user/.claude.json.tmp.668.1770053359321
+2026-02-02T17:29:19.321Z [DEBUG] Preserving file permissions: 100644
+2026-02-02T17:29:19.322Z [DEBUG] Temp file written successfully, size: 549 bytes
+2026-02-02T17:29:19.322Z [DEBUG] Applied original permissions to temp file
+2026-02-02T17:29:19.322Z [DEBUG] Renaming /sandbox/user/.claude.json.tmp.668.1770053359321 to /sandbox/user/.claude.json
+2026-02-02T17:29:19.322Z [DEBUG] File /sandbox/user/.claude.json written atomically
+2026-02-02T17:29:19.323Z [DEBUG] Writing through symlink: /home/ubuntu/.claude.json -> /sandbox/user/.claude.json
+2026-02-02T17:29:19.323Z [DEBUG] Writing to temp file: /sandbox/user/.claude.json.tmp.668.1770053359323
+2026-02-02T17:29:19.323Z [DEBUG] Preserving file permissions: 100644
+2026-02-02T17:29:19.324Z [DEBUG] Temp file written successfully, size: 582 bytes
+2026-02-02T17:29:19.324Z [DEBUG] Applied original permissions to temp file
+2026-02-02T17:29:19.324Z [DEBUG] Renaming /sandbox/user/.claude.json.tmp.668.1770053359323 to /sandbox/user/.claude.json
+2026-02-02T17:29:19.324Z [DEBUG] File /sandbox/user/.claude.json written atomically
+2026-02-02T17:29:19.325Z [DEBUG] Writing through symlink: /home/ubuntu/.claude.json -> /sandbox/user/.claude.json
+2026-02-02T17:29:19.325Z [DEBUG] Writing to temp file: /sandbox/user/.claude.json.tmp.668.1770053359325
+2026-02-02T17:29:19.325Z [DEBUG] Preserving file permissions: 100644
+2026-02-02T17:29:19.327Z [DEBUG] Temp file written successfully, size: 621 bytes
+2026-02-02T17:29:19.327Z [DEBUG] Applied original permissions to temp file
+2026-02-02T17:29:19.327Z [DEBUG] Renaming /sandbox/user/.claude.json.tmp.668.1770053359325 to /sandbox/user/.claude.json
+2026-02-02T17:29:19.327Z [DEBUG] File /sandbox/user/.claude.json written atomically
+2026-02-02T17:29:19.328Z [DEBUG] Writing through symlink: /home/ubuntu/.claude.json -> /sandbox/user/.claude.json
+2026-02-02T17:29:19.328Z [DEBUG] Writing to temp file: /sandbox/user/.claude.json.tmp.668.1770053359328
+2026-02-02T17:29:19.328Z [DEBUG] Preserving file permissions: 100644
+2026-02-02T17:29:19.330Z [DEBUG] Temp file written successfully, size: 660 bytes
+2026-02-02T17:29:19.331Z [DEBUG] Applied original permissions to temp file
+2026-02-02T17:29:19.331Z [DEBUG] Renaming /sandbox/user/.claude.json.tmp.668.1770053359328 to /sandbox/user/.claude.json
+2026-02-02T17:29:19.331Z [DEBUG] File /sandbox/user/.claude.json written atomically
+2026-02-02T17:29:19.332Z [DEBUG] Writing through symlink: /home/ubuntu/.claude.json -> /sandbox/user/.claude.json
+2026-02-02T17:29:19.332Z [DEBUG] Writing to temp file: /sandbox/user/.claude.json.tmp.668.1770053359332
+2026-02-02T17:29:19.332Z [DEBUG] Preserving file permissions: 100644
+2026-02-02T17:29:19.334Z [DEBUG] Temp file written successfully, size: 698 bytes
+2026-02-02T17:29:19.334Z [DEBUG] Applied original permissions to temp file
+2026-02-02T17:29:19.334Z [DEBUG] Renaming /sandbox/user/.claude.json.tmp.668.1770053359332 to /sandbox/user/.claude.json
+2026-02-02T17:29:19.334Z [DEBUG] File /sandbox/user/.claude.json written atomically
+2026-02-02T17:29:19.335Z [DEBUG] Writing through symlink: /home/ubuntu/.claude.json -> /sandbox/user/.claude.json
+2026-02-02T17:29:19.335Z [DEBUG] Writing to temp file: /sandbox/user/.claude.json.tmp.668.1770053359335
+2026-02-02T17:29:19.335Z [DEBUG] Preserving file permissions: 100644
+2026-02-02T17:29:19.336Z [DEBUG] Temp file written successfully, size: 730 bytes
+2026-02-02T17:29:19.336Z [DEBUG] Applied original permissions to temp file
+2026-02-02T17:29:19.336Z [DEBUG] Renaming /sandbox/user/.claude.json.tmp.668.1770053359335 to /sandbox/user/.claude.json
+2026-02-02T17:29:19.336Z [DEBUG] File /sandbox/user/.claude.json written atomically
+2026-02-02T17:29:19.337Z [DEBUG] Writing through symlink: /home/ubuntu/.claude.json -> /sandbox/user/.claude.json
+2026-02-02T17:29:19.337Z [DEBUG] Writing to temp file: /sandbox/user/.claude.json.tmp.668.1770053359337
+2026-02-02T17:29:19.337Z [DEBUG] Preserving file permissions: 100644
+2026-02-02T17:29:19.338Z [DEBUG] Temp file written successfully, size: 760 bytes
+2026-02-02T17:29:19.338Z [DEBUG] Applied original permissions to temp file
+2026-02-02T17:29:19.338Z [DEBUG] Renaming /sandbox/user/.claude.json.tmp.668.1770053359337 to /sandbox/user/.claude.json
+2026-02-02T17:29:19.338Z [DEBUG] File /sandbox/user/.claude.json written atomically
+2026-02-02T17:29:19.339Z [DEBUG] Writing through symlink: /home/ubuntu/.claude.json -> /sandbox/user/.claude.json
+2026-02-02T17:29:19.339Z [DEBUG] Writing to temp file: /sandbox/user/.claude.json.tmp.668.1770053359339
+2026-02-02T17:29:19.339Z [DEBUG] Preserving file permissions: 100644
+2026-02-02T17:29:19.340Z [DEBUG] Temp file written successfully, size: 793 bytes
+2026-02-02T17:29:19.340Z [DEBUG] Applied original permissions to temp file
+2026-02-02T17:29:19.340Z [DEBUG] Renaming /sandbox/user/.claude.json.tmp.668.1770053359339 to /sandbox/user/.claude.json
+2026-02-02T17:29:19.340Z [DEBUG] File /sandbox/user/.claude.json written atomically
+2026-02-02T17:29:19.341Z [DEBUG] Writing through symlink: /home/ubuntu/.claude.json -> /sandbox/user/.claude.json
+2026-02-02T17:29:19.341Z [DEBUG] Writing to temp file: /sandbox/user/.claude.json.tmp.668.1770053359341
+2026-02-02T17:29:19.341Z [DEBUG] Preserving file permissions: 100644
+2026-02-02T17:29:19.342Z [DEBUG] Temp file written successfully, size: 845 bytes
+2026-02-02T17:29:19.342Z [DEBUG] Applied original permissions to temp file
+2026-02-02T17:29:19.342Z [DEBUG] Renaming /sandbox/user/.claude.json.tmp.668.1770053359341 to /sandbox/user/.claude.json
+2026-02-02T17:29:19.342Z [DEBUG] File /sandbox/user/.claude.json written atomically
+2026-02-02T17:29:19.343Z [DEBUG] Writing through symlink: /home/ubuntu/.claude.json -> /sandbox/user/.claude.json
+2026-02-02T17:29:19.343Z [DEBUG] Writing to temp file: /sandbox/user/.claude.json.tmp.668.1770053359343
+2026-02-02T17:29:19.343Z [DEBUG] Preserving file permissions: 100644
+2026-02-02T17:29:19.344Z [DEBUG] Temp file written successfully, size: 902 bytes
+2026-02-02T17:29:19.344Z [DEBUG] Applied original permissions to temp file
+2026-02-02T17:29:19.344Z [DEBUG] Renaming /sandbox/user/.claude.json.tmp.668.1770053359343 to /sandbox/user/.claude.json
+2026-02-02T17:29:19.344Z [DEBUG] File /sandbox/user/.claude.json written atomically
+2026-02-02T17:29:19.345Z [DEBUG] Writing through symlink: /home/ubuntu/.claude.json -> /sandbox/user/.claude.json
+2026-02-02T17:29:19.345Z [DEBUG] Writing to temp file: /sandbox/user/.claude.json.tmp.668.1770053359345
+2026-02-02T17:29:19.345Z [DEBUG] Preserving file permissions: 100644
+2026-02-02T17:29:19.346Z [DEBUG] Temp file written successfully, size: 932 bytes
+2026-02-02T17:29:19.346Z [DEBUG] Applied original permissions to temp file
+2026-02-02T17:29:19.346Z [DEBUG] Renaming /sandbox/user/.claude.json.tmp.668.1770053359345 to /sandbox/user/.claude.json
+2026-02-02T17:29:19.346Z [DEBUG] File /sandbox/user/.claude.json written atomically
+2026-02-02T17:29:19.357Z [ERROR] AxiosError: Error
+    at eS (/$bunfs/root/claude:41:1143)
+    at <anonymous> (/$bunfs/root/claude:46:10080)
+    at emit (node:events:92:22)
+    at endReadableNT (internal:streams/readable:862:50)
+    at processTicksAndRejections (native:7:39)
+    at request (/$bunfs/root/claude:48:2147)
+    at processTicksAndRejections (native:7:39)
+2026-02-02T17:29:19.431Z [DEBUG] Checking for native installer update to version 2.1.29
+2026-02-02T17:29:19.435Z [DEBUG] Downloading native installer version 2.1.29
+2026-02-02T17:29:22.109Z [DEBUG] Atomically installed binary to /home/ubuntu/.local/share/claude/versions/2.1.29
+2026-02-02T17:29:22.150Z [DEBUG] Could not remove empty directory at /home/ubuntu/.local/bin/claude: Error: ENOENT: no such file or directory, statx '/home/ubuntu/.local/bin/claude'
+2026-02-02T17:29:22.150Z [DEBUG] Created directory /home/ubuntu/.local/bin for symlink
+2026-02-02T17:29:22.151Z [DEBUG] Atomically updated symlink /home/ubuntu/.local/bin/claude -> /home/ubuntu/.local/share/claude/versions/2.1.29
+2026-02-02T17:29:22.151Z [DEBUG] Successfully updated to version 2.1.29
+2026-02-02T17:29:22.152Z [DEBUG] Writing through symlink: /home/ubuntu/.claude.json -> /sandbox/user/.claude.json
+2026-02-02T17:29:22.152Z [DEBUG] Writing to temp file: /sandbox/user/.claude.json.tmp.668.1770053362152
+2026-02-02T17:29:22.152Z [DEBUG] Preserving file permissions: 100644
+2026-02-02T17:29:22.155Z [DEBUG] Temp file written successfully, size: 1026 bytes
+2026-02-02T17:29:22.155Z [DEBUG] Applied original permissions to temp file
+2026-02-02T17:29:22.155Z [DEBUG] Renaming /sandbox/user/.claude.json.tmp.668.1770053362152 to /sandbox/user/.claude.json
+2026-02-02T17:29:22.155Z [DEBUG] File /sandbox/user/.claude.json written atomically
+2026-02-02T17:29:22.155Z [DEBUG] Native installer: Set installMethod to "native" and disabled legacy auto-updater for protection
+2026-02-02T17:29:22.155Z [DEBUG] Install: installLatest returned version=2.1.29, wasUpdated=true, lockFailed=false
+2026-02-02T17:29:22.163Z [DEBUG] Writing through symlink: /home/ubuntu/.claude.json -> /sandbox/user/.claude.json
+2026-02-02T17:29:22.163Z [DEBUG] Writing to temp file: /sandbox/user/.claude.json.tmp.668.1770053362163
+2026-02-02T17:29:22.163Z [DEBUG] Preserving file permissions: 100644
+2026-02-02T17:29:22.166Z [DEBUG] Temp file written successfully, size: 1071 bytes
+2026-02-02T17:29:22.166Z [DEBUG] Applied original permissions to temp file
+2026-02-02T17:29:22.166Z [DEBUG] Renaming /sandbox/user/.claude.json.tmp.668.1770053362163 to /sandbox/user/.claude.json
+2026-02-02T17:29:22.167Z [DEBUG] File /sandbox/user/.claude.json written atomically
+2026-02-02T17:29:22.190Z [DEBUG] Install: Setup launcher completed with 1 messages
+2026-02-02T17:29:22.190Z [DEBUG] Install: Setup message: Native installation exists but ~/.local/bin is not in your PATH. Run:
+
+echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.bashrc && source ~/.bashrc
+2026-02-02T17:29:22.190Z [DEBUG] Install: Cleaning up npm installations after successful install

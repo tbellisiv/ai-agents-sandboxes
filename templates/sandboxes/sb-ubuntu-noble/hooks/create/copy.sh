@@ -22,4 +22,8 @@ cp -r -f $template_artifacts_path/* $new_sandbox_path
 #prepend SB_COMPOSE_ROOT to sb-compose.env
 sed -i "1i SB_COMPOSE_ROOT=$new_sandbox_path" $new_sandbox_path/sb-compose.env
 
+# Add module search path to sb-sandbox.env
+echo "SB_MODULE_SEARCH_PATH=\"$new_sandbox_path/modules\"" >> $new_sandbox_path/sb-sandbox.env
+
+
 

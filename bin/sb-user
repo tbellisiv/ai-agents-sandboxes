@@ -1,0 +1,215 @@
+#!/bin/bash
+
+set -u
+
+# shellcheck disable=SC2034
+
+SCRIPT_NAME=$(basename $0)    #equivalent to ${0##*/}
+SCRIPT_DIR=$(dirname $0)
+SCRIPT_VERSION=0.1
+
+LIB_DIR=$SCRIPT_DIR/../lib
+
+GETOPTIONS_LIB_PATH=$LIB_DIR/getoptions_lib
+
+if [ ! -f "$GETOPTIONS_LIB_PATH" ]; then
+    echo "$SCRIPT_NAME: Aborting- library '$GETOPTIONS_LIB_PATH' does not exist"
+    exit -1
+fi
+
+. $GETOPTIONS_LIB_PATH
+
+parser_definition() {
+
+	setup   REST help:usage abbr:true -- "Usage: $SCRIPT_NAME [<command>] [<command-options>]"
+
+	msg -- '' "${SCRIPT_NAME}: Commands for managing user configuration (init, etc.)" ''
+
+	msg -- 'Options:'
+
+	disp    :usage  -h --help
+	disp    SCRIPT_VERSION    --version
+
+	msg         -- '' 'Commands:'
+	cmd init -- "Generates user configuration files"
+}
+
+parser_definition_init() {
+	setup   REST error:error_init help:usage abbr:true -- "Usage: $SCRIPT_NAME init [<options>]"
+	msg -- '' 'Generates user-level sandbox configuration files'
+	msg -- 'Options:'
+	disp    :usage        -h    --help
+}
+
+regex() {
+	awk -v s="$OPTARG" -v r="$1" 'BEGIN{exit match(s, r)==0}'
+}
+
+init_user_env() {
+
+	user_config_root=
+  user_sb_env_root=
+  if [[ -v XDG_CONFIG_HOME && -d "$XDG_CONFIG_HOME" ]]; then
+    user_config_root="$XDG_CONFIG_HOME"
+    user_sb_env_root="$user_config_root/sb"
+  elif [ -d "$HOME/.config" ]; then
+    user_config_root="$HOME/.config"
+    user_sb_env_root="$user_config_root/sb"
+  else
+    user_config_root="$HOME"
+    user_sb_env_root="$user_config_root/.sb"
+  fi
+
+  user_config_root_abs=$(readlink -f $user_config_root)
+  user_sb_env_root_abs=$(readlink -f $user_sb_env_root)
+
+  if [ ! -d "$user_config_root_abs" ]; then
+    echo "$SCRIPT_NAME: Sandbox user config initialization failed- unable to detect default user config directory"
+    exit 1
+  fi
+
+  if [ -d "$user_sb_env_root_abs" ]; then
+    echo "$SCRIPT_NAME: Aborting sandbox user config initialization- directory '$user_sb_env_root_abs' exists"
+    exit 1
+  fi
+
+  echo ""
+
+  echo "$SCRIPT_NAME: Creating dir : $user_sb_env_root"
+  mkdir -p $user_sb_env_root
+  if [ $? -ne 0 ]; then
+		echo  "$SCRIPT_NAME: Aborting sandbox user config initialization- failed to create project root directory '$user_sb_env_root'"
+		exit 1
+	fi
+
+  user_env_path=$user_sb_env_root/user.env
+  user_secrets_env_path=$user_sb_env_root/user-secrets.env
+  user_modules_dir_path=$user_sb_env_root/modules
+  user_example_module_dir_path=$user_modules_dir_path/user-example
+
+  echo "$SCRIPT_NAME: Creating file: $user_env_path"
+  cat <<EOF > $user_env_path
+#SB_USER_DEFAULT_TEMPLATE_ID=
+#SB_USER_DEFAULT_SANDBOX_ID=
+
+SB_USER_MODULE_SEARCH_PATH="${user_modules_dir_path}"
+#SB_USER_DEFAULT_MODULES=("$(basename $user_example_module_dir_path)")
+EOF
+  if [ $? -ne 0 ]; then
+		echo  "$SCRIPT_NAME: Aborting sandbox user config initialization- failed to create file $user_env_path"
+		exit 1
+	fi
+
+  echo "$SCRIPT_NAME: Creating file: $user_secrets_env_path"
+  cat <<EOF > $user_secrets_env_path
+#CLAUDE_CODE_OAUTH_TOKEN=
+EOF
+  if [ $? -ne 0 ]; then
+		echo  "$SCRIPT_NAME: Aborting sandbox user config initialization- failed to create file '$user_secrets_env_path'"
+		exit 1
+	fi
+
+  echo "$SCRIPT_NAME: Creating dir : ${user_modules_dir_path}/"
+  mkdir -p $user_modules_dir_path
+  if [ $? -ne 0 ]; then
+		echo  "$SCRIPT_NAME: Aborting sandbox user config initialization- failed to create directory '$user_modules_dir_path'"
+		exit 1
+	fi
+
+  echo "$SCRIPT_NAME: Creating dir : ${user_example_module_dir_path}/"
+  mkdir -p $user_example_module_dir_path
+  if [ $? -ne 0 ]; then
+		echo  "$SCRIPT_NAME: Aborting sandbox user config initialization- failed to create directory '$user_example_module_dir_path'"
+		exit 1
+	fi
+
+  module_readme_path=$user_example_module_dir_path/README.md
+  echo "$SCRIPT_NAME: Creating file: ${module_readme_path}"
+  cat <<EOF > $module_readme_path
+# Example Sandbox Module
+EOF
+  if [ $? -ne 0 ]; then
+		echo  "$SCRIPT_NAME: Aborting sandbox user config initialization- failed to create file '$module_readme_path'"
+		exit 1
+	fi
+
+  artifacts_dir=${user_example_module_dir_path}/artifacts
+  echo "$SCRIPT_NAME: Creating dir : ${artifacts_dir}/"
+  mkdir -p $artifacts_dir
+  if [ $? -ne 0 ]; then
+		echo  "$SCRIPT_NAME: Aborting sandbox user config initialization- failed to create directory '$artifacts_dir'"
+		exit 1
+	fi
+
+  artifacts_readme_path=$artifacts_dir/README.md
+  echo "$SCRIPT_NAME: Creating file: ${artifacts_readme_path}"
+  cat <<EOF > $artifacts_readme_path
+Add any dependencies required for the module hooks (configuration files, scripts) here.
+EOF
+  if [ $? -ne 0 ]; then
+		echo  "$SCRIPT_NAME: Aborting sandbox user config initialization- failed to create file '$artifacts_readme_path'"
+		exit 1
+	fi
+
+  hooks_dir=${user_example_module_dir_path}/hooks
+  echo "$SCRIPT_NAME: Creating dir : ${hooks_dir}/"
+  mkdir -p $hooks_dir
+  if [ $? -ne 0 ]; then
+		echo  "$SCRIPT_NAME: Aborting sandbox user config initialization- failed to create directory '$hooks_dir'"
+		exit 1
+	fi
+
+  hook_init_script_path=$hooks_dir/init.sh
+  echo "$SCRIPT_NAME: Creating file: ${hook_init_script_path}"
+  cat <<EOF > $hook_init_script_path
+#! /bin/bash
+
+SCRIPT_DIR=\$(readlink -f \$(dirname \$0))
+SCRIPT_NAME=\$(basename \$0)
+
+MODULE_DIR=\$(readlink -f \$SCRIPT_DIR/..)
+MODULE_NAME=\$(basename \$MODULE_DIR)
+MODULE_HOOK=\$(basename \$SCRIPT_NAME ".sh")
+
+SCRIPT_MSG_PREFIX="[module=\$MODULE_NAME hook=\$MODULE_HOOK]"
+
+echo "\$SCRIPT_MSG_PREFIX: Initializing"
+
+echo "\$SCRIPT_MSG_PREFIX: Initialization complete"
+
+exit 0
+EOF
+  if [ $? -ne 0 ]; then
+		echo  "$SCRIPT_NAME: Aborting sandbox user config initialization- failed to create file '$hook_init_script_path'"
+		exit 1
+	fi
+
+  chmod 755 $hook_init_script_path
+  if [ $? -ne 0 ]; then
+		echo  "$SCRIPT_NAME: Error: Aborting sandbox user config initialization- failed to set execute permissions on file '$hook_init_script_path'"
+		exit 1
+	fi
+  
+  echo ""
+  echo "$SCRIPT_NAME: Initialization complete"
+  echo ""
+  echo "$SCRIPT_NAME: User configuration directory: $user_sb_env_root"
+}
+
+eval "$(getoptions parser_definition) exit 1"
+
+if [ $# -gt 0 ]; then
+	cmd=$1
+	shift
+	case $cmd in
+		init)
+			  cmd_parser="$(getoptions parser_definition_init)"
+        eval "$cmd_parser"
+        init_user_env
+			  ;;
+
+		--) # no subcommand, arguments only
+	esac
+else
+    usage
+fi
