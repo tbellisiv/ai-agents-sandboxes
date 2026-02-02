@@ -30,6 +30,7 @@ parser_definition() {
 
 	msg           -- '' 'Commands:'
 	cmd new       -- "Creates a new sandbox.                                     "
+	cmd rm        -- "Deletes sandbox.                                           "
 	cmd up        -- "Ensures the sandbox is running                             "
 	cmd down      -- "Stops the sandbox and deletes associated Docker resources  "
 	cmd start     -- "Starts the sandbox (if not running)                        "
@@ -64,6 +65,15 @@ parser_definition_new() {
   msg -- ''
 	disp    :usage        -h    --help
   msg -- ''
+}
+
+parser_definition_rm() {
+	setup   REST error:error_init help:usage abbr:true -- "Usage: $SCRIPT_NAME shell [<sandbox>] [<options>]"
+	msg -- '' 'Deletes a sandbox'
+	msg -- 'Options:'
+	flag    confirm       -y    --skip-confirm         -- "Do not prompt for confirmation"
+	param   project_path  -p    --project-path                                                                                   -- "The path to the project directory (the ".sb" directory). If not specified, $SCRIPT_NAME will attempt to find the path based on the current directory"
+	disp    :usage        -h    --help
 }
 
 parser_definition_shell() {
@@ -348,7 +358,7 @@ get_sandbox_cmd_conf()
   #validate the sandbox path
 	sandbox_path=$project_path_abs/sandboxes/$sandbox
 	if [ ! -d "$sandbox_path" ]; then
-		echo "$SCRIPT_NAME: Error: Sandbox directory '$sandbox_path' does not exist"
+		echo "$SCRIPT_NAME: Error: Sandbox '$sandbox' at '$sandbox_path' does not exist"
 		exit 1
 	fi
 
@@ -399,14 +409,17 @@ get_sandbox_cmd_conf()
   echo -n "$sb_conf"
 }
 
-start() {
+sandbox_start() {
 
   #get the sandbox config
   cmd_conf=$(get_sandbox_cmd_conf)
-  eval "$cmd_conf"
   if [ $? -ne 0 ]; then
+    if [ -n "$cmd_conf" ]; then
+      echo "$cmd_conf"
+    fi
     exit 1
-  fi
+  fi  
+  eval "$cmd_conf"
 
   echo "$SCRIPT_NAME: Sandbox: $__sandbox_root"
   
@@ -432,14 +445,17 @@ start() {
 
 }
 
-stop() {
+sandbox_stop() {
 
   #get the sandbox config
   cmd_conf=$(get_sandbox_cmd_conf)
-  eval "$cmd_conf"
   if [ $? -ne 0 ]; then
+    if [ -n "$cmd_conf" ]; then
+      echo "$cmd_conf"
+    fi
     exit 1
-  fi
+  fi  
+  eval "$cmd_conf"
 
   echo "$SCRIPT_NAME: Sandbox: $__sandbox_root"
   
@@ -465,14 +481,17 @@ stop() {
 
 }
 
-kill() {
+sandbox_kill() {
 
   #get the sandbox config
   cmd_conf=$(get_sandbox_cmd_conf)
-  eval "$cmd_conf"
   if [ $? -ne 0 ]; then
+    if [ -n "$cmd_conf" ]; then
+      echo "$cmd_conf"
+    fi
     exit 1
-  fi
+  fi  
+  eval "$cmd_conf"
 
   echo "$SCRIPT_NAME: Sandbox: $__sandbox_root"
   
@@ -498,14 +517,17 @@ kill() {
 
 }
 
-ps() {
+sandbox_ps() {
 
   #get the sandbox config
   cmd_conf=$(get_sandbox_cmd_conf)
-  eval "$cmd_conf"
   if [ $? -ne 0 ]; then
+    if [ -n "$cmd_conf" ]; then
+      echo "$cmd_conf"
+    fi
     exit 1
-  fi
+  fi  
+  eval "$cmd_conf"
 
   echo "$SCRIPT_NAME: Sandbox: $__sandbox_root"
 	echo "$SCRIPT_NAME: Running: docker compose $__compose_file ps $__compose_service --format 'State: {{{.State}}'"
@@ -524,14 +546,17 @@ ps() {
 
 }
 
-logs() {
+sandbox_logs() {
 
   #get the sandbox config
   cmd_conf=$(get_sandbox_cmd_conf)
-  eval "$cmd_conf"
   if [ $? -ne 0 ]; then
+    if [ -n "$cmd_conf" ]; then
+      echo "$cmd_conf"
+    fi
     exit 1
-  fi
+  fi  
+  eval "$cmd_conf"
 
   echo "$SCRIPT_NAME: Sandbox: $__sandbox_root"
 	echo "$SCRIPT_NAME: Running: docker compose $__compose_file logs $__compose_service --no-log-prefix -t --no-color"
@@ -540,7 +565,7 @@ logs() {
 
 }
 
-ls() {
+sandbox_ls() {
 
 	# get the path to the project
 	if [ -z "$project_path" ]; then
@@ -576,20 +601,43 @@ ls() {
 
 }
 
-sync() {
+sandbox_sync() {
 
   #get the sandbox config
   cmd_conf=$(get_sandbox_cmd_conf)
-  eval "$cmd_conf"
   if [ $? -ne 0 ]; then
+    if [ -n "$cmd_conf" ]; then
+      echo "$cmd_conf"
+    fi
     exit 1
-  fi
+  fi  
+  eval "$cmd_conf"
 
 	echo ""
 
 	sync_env
 
 	sync_image
+
+	echo ""
+	echo "$SCRIPT_NAME: Rebuilding sandbox"
+	echo ""
+	
+	echo "$SCRIPT_NAME: Running: docker compose -f $__compose_file down"
+	docker compose -f $__compose_file down
+	if [ $? -ne 0 ]; then
+		echo "$SCRIPT_NAME: Sandbox rebuild failed"
+		exit 1
+	fi
+
+	echo ""
+
+	echo "$SCRIPT_NAME: Running: docker compose -f $__compose_file create -y"
+	docker compose -f $__compose_file create -y 
+	if [ $? -ne 0 ]; then
+		echo "$SCRIPT_NAME: Sandbox rebuild failed"
+		exit 1
+	fi
 
 	echo ""
 	echo "$SCRIPT_NAME: Sandbox sync complete"
@@ -600,10 +648,13 @@ sync_image() {
 
   #get the sandbox config
   cmd_conf=$(get_sandbox_cmd_conf)
-  eval "$cmd_conf"
   if [ $? -ne 0 ]; then
+    if [ -n "$cmd_conf" ]; then
+      echo "$cmd_conf"
+    fi
     exit 1
-  fi
+  fi  
+  eval "$cmd_conf"
 
 	#source sb-sandbox.env to get SB_TEMPLATE_ID/SB_IMAGE
 	sb_sandbox_env_path=${__sandbox_root}/sb-sandbox.env
@@ -657,10 +708,15 @@ sync_env() {
 
   #get the sandbox config
   cmd_conf=$(get_sandbox_cmd_conf)
-  eval "$cmd_conf"
   if [ $? -ne 0 ]; then
+    if [ -n "$cmd_conf" ]; then
+      echo "$cmd_conf"
+    fi
     exit 1
-  fi
+  fi  
+  eval "$cmd_conf"
+
+	echo ""
 
 	if [ -f "$__compose_env_path" ]; then
 		compose_env_backup_path="${__compose_env_path}.bak"
@@ -712,43 +768,53 @@ sync_env() {
 		fi
 	done
 
-	# Add user env (ignore vars with 'SB_' prefix)
-	env_files="$__sandbox_root/user.env"
-	lines=
-	for f in $env_files; do
-		if [ -f "$f" ]; then
-			mapfile -t lines < $f
-			for line in "${lines[@]}"; do
-				if [[ ! $line =~ 'SB_' ]]; then
-					env+=($line)
-				fi
-			done			
-		else
-			echo "$SCRIPT_NAME: Warning- configuration file '$f' does not exist" >&2
-		fi
-	done
-
-	# Add user secrets env
-	env_files="$__sandbox_root/user-secrets.env"
-	lines=
-	for f in $env_files; do
-		if [ -f "$f" ]; then
-			mapfile -t lines < $f
-			env+=("${lines[@]}")
-		else
-			echo "$SCRIPT_NAME: Warning- configuration file '$f' does not exist" >&2
-		fi
-	done	
+	#source sb-project.env to get SB_PROJECT_PREFIX/SB_PROJECT_ID
+	source $__project_root/sb-project.env
 
 	# write the .env
 	echo "# This file is auto-generated." > $__compose_env_path
 	echo "# DO NOT MODIFY!!!" >> $__compose_env_path
 	echo "# Run 'sb sync' to update." >> $__compose_env_path
 	echo "" >> $__compose_env_path
+	echo "COMPOSE_PROJECT_NAME=\"${SB_PROJECT_PREFIX:-}${SB_PROJECT_ID}-${sandbox}\"" >> $__compose_env_path
+	echo "Done"
 	printf "%s\n" "${env[@]}" >> $__compose_env_path
 	if [ $? -ne 0 ]; then
 		echo "$SCRIPT_NAME: Error: Failed to write '$__compose_env_path'"
 		exit 1
+	fi
+
+	user_env_root=
+  if [[ -v XDG_CONFIG_HOME && -d "$XDG_CONFIG_HOME/sb" ]]; then
+    user_env_root="$XDG_CONFIG_HOME/sb"
+  elif [ -d "$HOME/.config/sb" ]; then
+    user_env_root="$HOME/.config/sb"
+  elif [ -f "$HOME/.sb" ]; then
+    user_env_root="$HOME/.sb"
+  fi
+
+echo "user_env_root=$user_env_root"
+
+	if [ -n "$user_env_root" ]; then
+		global_user_env_path=$(readlink -f $user_env_root/user.env)
+		sandbox_user_env_path=$__sandbox_root/user.env
+		if [ -f "$global_user_env_path" ]; then
+			echo "# This file is auto-generated from $global_user_env_path" > $sandbox_user_env_path
+			echo "# DO NOT MODIFY!!!" >> $sandbox_user_env_path
+			echo "# Run 'sb sync' to update." >> $sandbox_user_env_path
+			echo "" >> $sandbox_user_env_path
+			cat $global_user_env_path >> $sandbox_user_env_path
+		fi
+
+		global_user_secrets_env_path=$(readlink -f $user_env_root/user-secrets.env)
+		sandbox_user_secrets_env_path=$__sandbox_root/user-secrets.env
+		if [ -f "$global_user_secrets_env_path" ]; then
+			echo "# This file is auto-generated from $global_user_secrets_env_path" > $sandbox_user_secrets_env_path
+			echo "# DO NOT MODIFY!!!" >> $sandbox_user_secrets_env_path
+			echo "# Run 'sb sync' to update." >> $sandbox_user_secrets_env_path
+			echo "" >> $sandbox_user_secrets_env_path
+			cat $global_user_secrets_env_path >> $sandbox_user_secrets_env_path
+		fi
 	fi
 
 	echo ""
@@ -756,7 +822,7 @@ sync_env() {
 
 }
 
-compose() {
+sandbox_compose() {
 
   if [ -z "$cmd" ]; then
     usage
@@ -765,10 +831,13 @@ compose() {
 
   #get the sandbox config
   cmd_conf=$(get_sandbox_cmd_conf)
-  eval "$cmd_conf"
   if [ $? -ne 0 ]; then
+    if [ -n "$cmd_conf" ]; then
+      echo "$cmd_conf"
+    fi
     exit 1
-  fi
+  fi  
+  eval "$cmd_conf"
 
   echo "$SCRIPT_NAME: Sandbox: $__sandbox_root"
   echo "$SCRIPT_NAME: Running: docker compose -f $__compose_file $cmd"
@@ -781,14 +850,17 @@ compose() {
   
 }
 
-up() {
+sandbox_up() {
 
   #get the sandbox config
   cmd_conf=$(get_sandbox_cmd_conf)
-  eval "$cmd_conf"
   if [ $? -ne 0 ]; then
+    if [ -n "$cmd_conf" ]; then
+      echo "$cmd_conf"
+    fi
     exit 1
-  fi
+  fi  
+  eval "$cmd_conf"
 
   echo "$SCRIPT_NAME: Sandbox: $__sandbox_root"
 	echo "$SCRIPT_NAME: Running: docker compose -f $__compose_file up -d"
@@ -801,14 +873,17 @@ up() {
 
 }
 
-down() {
+sandbox_down() {
 
   #get the sandbox config
   cmd_conf=$(get_sandbox_cmd_conf)
-  eval "$cmd_conf"
   if [ $? -ne 0 ]; then
+    if [ -n "$cmd_conf" ]; then
+      echo "$cmd_conf"
+    fi
     exit 1
-  fi
+  fi  
+  eval "$cmd_conf"
 
   echo "$SCRIPT_NAME: Sandbox: $__sandbox_root"
 	echo "$SCRIPT_NAME: Running: docker compose -f $__compose_file down"
@@ -821,14 +896,17 @@ down() {
 
 }
 
-shell() {
+sandbox_shell() {
   
   #get the sandbox config
   cmd_conf=$(get_sandbox_cmd_conf)
-  eval "$cmd_conf"
   if [ $? -ne 0 ]; then
+    if [ -n "$cmd_conf" ]; then
+      echo "$cmd_conf"
+    fi
     exit 1
-  fi
+  fi  
+  eval "$cmd_conf"
 	
 	echo "$SCRIPT_NAME: Sandbox: $__sandbox_root"
   
@@ -861,7 +939,73 @@ shell() {
 
 }
 
-new() {
+sandbox_rm() {
+
+  #get the sandbox config
+  cmd_conf=$(get_sandbox_cmd_conf)
+  if [ $? -ne 0 ]; then
+    if [ -n "$cmd_conf" ]; then
+      echo "$cmd_conf"
+    fi
+    exit 1
+  fi  
+  eval "$cmd_conf"
+
+	echo ""
+
+	cwd=$(readlink -f $PWD)
+	#validation- ensure the 'sb delete' command is not being run from within the sandbox directory (or a sub-directory)
+	if [[ $cwd = "$__sandbox_root" || "$cwd" == "$__sandbox_root"/* ]]; then
+		echo "$SCRIPT_NAME: Aborting- this command cannot be run within the sandbox directory tree"
+		exit 1
+	fi
+
+
+	if [ -z "$confirm" ]; then
+		
+		echo "$SCRIPT_NAME: Delete sandbox '$__sandbox_id' at '$__sandbox_root'?"
+		echo ""
+
+		while true; do
+			read -r -p "$SCRIPT_NAME: Please confirm [y(es) or n(o)]: " response
+			echo ""
+			case $response in
+					[yY][eE][sS]|[yY] ) confirmed=1 && break                 ;;  
+				      [Nn][oO]|[Nn] ) confirmed=0 && break                 ;; 
+					                * )                                      ;;
+			esac
+		done
+	else
+		confirmed=1
+	fi
+
+	if [ $confirmed -ne 1 ]; then
+		echo "$SCRIPT_NAME: Aborting sandbox deletion"
+		exit 0
+	fi
+
+	echo "$SCRIPT_NAME: Deleting sandbox '$__sandbox_id' at '$__sandbox_root'"
+	echo ""
+
+	docker compose -f $__compose_file down -t 60 -v --remove-orphans
+	if [ $? -ne 0 ]; then
+	 	echo "$SCRIPT_NAME: Sandox deletion failed- 'docker compose down' failed"
+		exit 1
+	fi
+
+	rm -rf $__sandbox_root
+	if [ $? -ne 0 ]; then
+	 	echo "$SCRIPT_NAME: Sandox deletion failed- removal of sandbox files failed"
+		exit 1
+	fi
+
+	echo ""
+	echo "$SCRIPT_NAME: Sandbox deleted"
+	echo ""
+
+}
+
+sandbox_new() {
 
   #validate sandbox ID format (if specified)
   regex='^[a-zA-Z](-|_|[a-zA-z]|[0-9]$)*'
@@ -1049,32 +1193,42 @@ new() {
 	fi
 
 	sandbox_env_path=$sandbox_dest_path/sb-sandbox.env
-	if [-f "$sandbox_env_path" ]; then
+	if [ ! -f "$sandbox_env_path" ]; then
 		echo "$SCRIPT_NAME: Sandbox validation error- file '$sandbox_env_path' does not exist"
 		exit 1
 	fi
 
-	SB_SHELL=
 	source $sandbox_env_path
 
-	if [-z "$SB_SHELL" ]; then
+	sandbox_compose_env_path=$sandbox_dest_path/sb-compose.env
+	if [ -z "$SB_SHELL" ]; then
 		echo "$SCRIPT_NAME: Sandbox validation error- variable 'SB_SHELL' is not defined in '$sandbox_env_path'"
 		exit 1
 	fi
 
-	sandbox_compose_env_path=$sandbox_dest_path/sb-compose.env
-	if [-f "$sandbox_compose_env_path" ]; then
+	
+	if [ ! -f "$sandbox_compose_env_path" ]; then
 		echo "$SCRIPT_NAME: Sandbox validation error- file '$sandbox_compose_env_path' does not exist"
 		exit 1
 	fi
 
-	SB_COMPOSE_SERVICE=
 	source $sandbox_compose_env_path
 
-	if [-z "$SB_COMPOSE_SERVICE" ]; then
+	if [ -z "$SB_COMPOSE_SERVICE" ]; then
 		echo "$SCRIPT_NAME: Sandbox validation error- variable 'SB_COMPOSE_SERVICE' is not defined in '$sandbox_compose_env_path'"
 		exit 1
 	fi
+
+	# echo ""sb s
+	# echo "$SCRIPT_NAME: Building sandbox"
+	# echo ""
+	# echo "$SCRIPT_NAME: Running: docker compose -f $sandbox_compose_env_path create -y"
+
+	# docker compose -f $sandbox_compose_env_path create -y
+	# if [ $? -ne 0 ]; then
+	# 	echo "$SCRIPT_NAME: Sandbox build failed"
+	# 	exit 1
+	# fi
 
 	cat <<EOF
 
@@ -1090,11 +1244,11 @@ Next Steps:
 	
     or:
 	
-    'cd $sandbox_dest_path && docker compose up -d'
+    'cd $sandbox_dest_path && docker compose start'
 	
   - Start a shell session. Run:
 
-    'sb shell -s $sandbox'
+    'sb shell'
 	
     or:
 	
@@ -1115,72 +1269,78 @@ if [ $# -gt 0 ]; then
 				cmd_parser="$(getoptions parser_definition_new)"
 				eval "$cmd_parser"
         sandbox=$1
-				new $sandbox
+				sandbox_new $sandbox
 				;;
+		rm)
+				cmd_parser="$(getoptions parser_definition_rm)"
+				eval "$cmd_parser"
+        sandbox=$1
+				sandbox_rm $sandbox
+				;;				
 		shell)
 				cmd_parser="$(getoptions parser_definition_shell)"
         eval "$cmd_parser"
         sandbox=$1
-        shell $sandbox
+        sandbox_shell $sandbox
 				;;        
 		up)
 				cmd_parser="$(getoptions parser_definition_up)"
         eval "$cmd_parser"
         sandbox=$1
-        up $sandbox
+        sandbox_up $sandbox
 				;;      
 		down)
 				cmd_parser="$(getoptions parser_definition_down)"
         eval "$cmd_parser"
         sandbox=$1
-        down $sandbox
+        sandbox_down $sandbox
 				;;      								
 		start)
 				cmd_parser="$(getoptions parser_definition_start)"
         eval "$cmd_parser"
         sandbox=$1
-        start $sandbox
+        sandbox_start $sandbox
 				;;    
 		stop)
 				cmd_parser="$(getoptions parser_definition_stop)"
         eval "$cmd_parser"
         sandbox=$1
-        stop $sandbox
+        sandbox_stop $sandbox
 				;;     
 		kill)
 				cmd_parser="$(getoptions parser_definition_kill)"
         eval "$cmd_parser"
         sandbox=$1
-        kill $sandbox
+        sandbox_kill $sandbox
 				;;     				
 		ps)
 				cmd_parser="$(getoptions parser_definition_ps)"
         eval "$cmd_parser"
         sandbox=$1
-        ps $sandbox
+        sandbox_ps $sandbox
 				;;   
 		logs)
 				cmd_parser="$(getoptions parser_definition_ps)"
         eval "$cmd_parser"
         sandbox=$1
-        logs $sandbox
+        sandbox_logs $sandbox
 				;;    				 
 		ls)
 				cmd_parser="$(getoptions parser_definition_ls)"
         eval "$cmd_parser"
-        ls
+        sandbox_ls
 				;;   		 								
 		sync)
 				cmd_parser="$(getoptions parser_definition_sync)"
         eval "$cmd_parser"
         sandbox=$1
-        sync $sandbox
+        sandbox_sync $sandbox
 				;;  				 				     
 		compose)
 				cmd_parser="$(getoptions parser_definition_compose)"
         eval "$cmd_parser"
         sandbox=$1
-        compose $sandbox
+        sandbox_compose $sandbox
 				;;                         
 
 		--) # no subcommand, arguments only

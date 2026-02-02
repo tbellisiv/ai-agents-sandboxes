@@ -1,7 +1,5 @@
 #! /bin/bash
 
-set -e 
-
 SCRIPT_DIR=$(readlink -f $(dirname $0))
 SCRIPT_NAME=$(basename $0)
 
@@ -20,4 +18,8 @@ if [ ! -d "${template_artifacts_path}" ]; then
 fi
 
 cp -r -f $template_artifacts_path/* $new_sandbox_path
+
+#prepend SB_COMPOSE_ROOT to sb-compose.env
+sed -i "1i SB_COMPOSE_ROOT=$new_sandbox_path" $new_sandbox_path/sb-compose.env
+
 
