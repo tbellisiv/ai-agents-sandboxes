@@ -36,6 +36,8 @@ parser_definition() {
 	cmd start     -- "Starts the sandbox (if not running)                        "
 	cmd stop      -- "Stops the sandbox (if running)                             "
 	cmd kill      -- "Forcefully stops a running sandbox                         "
+	cmd pause     -- "Pause a running sandbox                                    "
+	cmd unpause   -- "Unpauses a paused sandbox                                  "
 	cmd logs      -- "Show sandbox container logs                                "
 	cmd ps        -- "Displays sandbox status                                    "
 	cmd ls        -- "Displays sandbox status                                    "
@@ -119,6 +121,22 @@ parser_definition_stop() {
 parser_definition_kill() {
 	setup   REST error:error_init help:usage abbr:true -- "Usage: $SCRIPT_NAME kill [<sandbox>] [<options>]"
 	msg -- '' 'Gracefully stops the sandbox (if running)'
+	msg -- 'Options:'
+	param   project_path  -p    --project-path                                                                                   -- "The path to the project directory (the ".sb" directory). If not specified, $SCRIPT_NAME will attempt to find the path based on the current directory"
+	disp    :usage        -h    --help
+}
+
+parser_definition_pause() {
+	setup   REST error:error_init help:usage abbr:true -- "Usage: $SCRIPT_NAME pause [<sandbox>] [<options>]"
+	msg -- '' 'Pauses a running container'
+	msg -- 'Options:'
+	param   project_path  -p    --project-path                                                                                   -- "The path to the project directory (the ".sb" directory). If not specified, $SCRIPT_NAME will attempt to find the path based on the current directory"
+	disp    :usage        -h    --help
+}
+
+parser_definition_unpause() {
+	setup   REST error:error_init help:usage abbr:true -- "Usage: $SCRIPT_NAME pause [<sandbox>] [<options>]"
+	msg -- '' 'Unpauses a paused container'
 	msg -- 'Options:'
 	param   project_path  -p    --project-path                                                                                   -- "The path to the project directory (the ".sb" directory). If not specified, $SCRIPT_NAME will attempt to find the path based on the current directory"
 	disp    :usage        -h    --help
@@ -421,27 +439,43 @@ sandbox_start() {
   fi  
   eval "$cmd_conf"
 
-  echo "$SCRIPT_NAME: Sandbox: $__sandbox_root"
-  
-  #Start the service if it is not running
-  status=$(docker compose -f $__compose_file ps $__compose_service --format "{{.State}}")
-  if [ $? -ne 0 ]; then
-    echo "$SCRIPT_NAME: Error- failed to obtain sandbox status"
-    exit 1
-  fi
-  
-  if [ "$status" = "running" ]; then
-    echo "$SCRIPT_NAME: Sandbox '$__sandbox_id' is running"
-  else
-    echo "$SCRIPT_NAME: Starting sandbox '$__sandbox_id'"
-    echo "$SCRIPT_NAME: Running: docker compose -f $__compose_file start"
-    echo ""
-    docker compose -f $__compose_file start
-    if [ $? -ne 0 ]; then
-      echo "$SCRIPT_NAME: Error- failed to start sandbox"
-      exit 1
-    fi	
-  fi
+	#check if the service exists
+	container_id=$(docker compose -f $__compose_file ps -a -q $__compose_service)
+	if [ $? -ne 0 ]; then
+		echo "$SCRIPT_NAME: Error- container existence check failed"
+		exit 1
+	fi
+
+	# service does not exist
+	if [ -z "$container_id" ]; then
+		sandbox_up $__sandbox_id
+		exit $?
+	else
+
+		#Start the service if it is not running
+		status=$(docker compose -f $__compose_file ps $__compose_service --format "{{.State}}")
+		if [ $? -ne 0 ]; then
+			echo "$SCRIPT_NAME: Error- failed to obtain sandbox status"
+			exit 1
+		fi
+		
+		if [ "$status" = "running" ]; then
+			echo "$SCRIPT_NAME: Sandbox '$__sandbox_id' is running"
+		else
+			echo "$SCRIPT_NAME: Starting sandbox '$__sandbox_id' at '$__sandbox_root'"
+			echo "$SCRIPT_NAME: Running: docker compose -f $__compose_file start"
+			echo ""
+			docker compose -f $__compose_file start
+			if [ $? -ne 0 ]; then
+				echo "$SCRIPT_NAME: Error- failed to start sandbox"
+				exit 1
+			fi
+			echo ""
+			echo "$SCRIPT_NAME: Sandbox '$__sandbox_id' started"
+			echo ""	
+		fi
+
+	fi
 
 }
 
@@ -457,8 +491,6 @@ sandbox_stop() {
   fi  
   eval "$cmd_conf"
 
-  echo "$SCRIPT_NAME: Sandbox: $__sandbox_root"
-  
   #Stop the service it is running
   status=$(docker compose -f $__compose_file ps $__compose_service --format "{{.State}}")
   if [ $? -ne 0 ]; then
@@ -469,14 +501,92 @@ sandbox_stop() {
   if [ "$status" != "running" ]; then
     echo "$SCRIPT_NAME: Sandbox '$__sandbox_id' is not running"
   else
-    echo "$SCRIPT_NAME: Stopping sandbox '$__sandbox_id'"
+    echo "$SCRIPT_NAME: Stopping sandbox '$__sandbox_id' at '$__sandbox_root'"
     echo "$SCRIPT_NAME: Running: docker compose -f $__compose_file stop"
     echo ""
     docker compose -f $__compose_file stop
     if [ $? -ne 0 ]; then
       echo "$SCRIPT_NAME: Error- failed to stop sandbox"
       exit 1
-    fi	
+    fi
+		echo ""
+		echo "$SCRIPT_NAME: Sandbox '$__sandbox_id' stopped"
+		echo ""		
+  fi
+
+}
+
+sandbox_pause() {
+
+  #get the sandbox config
+  cmd_conf=$(get_sandbox_cmd_conf)
+  if [ $? -ne 0 ]; then
+    if [ -n "$cmd_conf" ]; then
+      echo "$cmd_conf"
+    fi
+    exit 1
+  fi  
+  eval "$cmd_conf"
+
+  #Stop the service it is running
+  status=$(docker compose -f $__compose_file ps $__compose_service --format "{{.State}}")
+  if [ $? -ne 0 ]; then
+    echo "$SCRIPT_NAME: Error- failed to obtain sandbox status"
+    exit 1
+  fi
+  
+  if [ "$status" != "running" ]; then
+    echo "$SCRIPT_NAME: Unable to pause- sandbox '$__sandbox_id' is not running"
+  else
+    echo "$SCRIPT_NAME: Pausing sandbox '$__sandbox_id' at '$__sandbox_root'"
+    echo "$SCRIPT_NAME: Running: docker compose -f $__compose_file paused"
+    echo ""
+    docker compose -f $__compose_file pause
+    if [ $? -ne 0 ]; then
+      echo "$SCRIPT_NAME: Error- failed to pause sandbox"
+      exit 1
+    fi
+		echo ""
+		echo "$SCRIPT_NAME: Sandbox '$__sandbox_id' paused"
+		echo ""		
+  fi
+
+}
+
+
+sandbox_unpause() {
+
+  #get the sandbox config
+  cmd_conf=$(get_sandbox_cmd_conf)
+  if [ $? -ne 0 ]; then
+    if [ -n "$cmd_conf" ]; then
+      echo "$cmd_conf"
+    fi
+    exit 1
+  fi  
+  eval "$cmd_conf"
+
+  #Unpause the service if it is paused
+  status=$(docker compose -f $__compose_file ps $__compose_service --format "{{.State}}")
+  if [ $? -ne 0 ]; then
+    echo "$SCRIPT_NAME: Error- failed to obtain sandbox status"
+    exit 1
+  fi
+  
+  if [ "$status" != "paused" ]; then
+    echo "$SCRIPT_NAME: Sandbox '$__sandbox_id' is not paused"
+  else
+    echo "$SCRIPT_NAME: Unpausing sandbox '$__sandbox_id' at '$__sandbox_root'"
+    echo "$SCRIPT_NAME: Running: docker compose -f $__compose_file unpause"
+    echo ""
+    docker compose -f $__compose_file unpause
+    if [ $? -ne 0 ]; then
+      echo "$SCRIPT_NAME: Error- failed to unpause sandbox"
+      exit 1
+    fi
+		echo ""
+		echo "$SCRIPT_NAME: Sandbox '$__sandbox_id' unpaused"
+		echo ""		
   fi
 
 }
@@ -505,14 +615,17 @@ sandbox_kill() {
   if [ "$status" != "running" ]; then
     echo "$SCRIPT_NAME: Sandbox '$__sandbox_id' is not running"
   else
-    echo "$SCRIPT_NAME: Killing sandbox '$__sandbox_id'"
+    echo "$SCRIPT_NAME: Killing sandbox '$__sandbox_id' at '$__sandbox_root'"
     echo "$SCRIPT_NAME: Running: docker compose -f $__compose_file kill"
     echo ""
     docker compose -f $__compose_file kill
     if [ $? -ne 0 ]; then
-      echo "$SCRIPT_NAME: Error- failed to stop sandbox"
+      echo "$SCRIPT_NAME: Error- failed to kill  sandbox"
       exit 1
     fi	
+		echo ""
+		echo "$SCRIPT_NAME: Killed sandbox '$__sandbox_id'"
+		echo ""			
   fi
 
 }
@@ -529,8 +642,8 @@ sandbox_ps() {
   fi  
   eval "$cmd_conf"
 
-  echo "$SCRIPT_NAME: Sandbox: $__sandbox_root"
-	echo "$SCRIPT_NAME: Running: docker compose $__compose_file ps $__compose_service --format 'State: {{{.State}}'"
+	echo ""
+  echo "$SCRIPT_NAME: Sandbox '$__sandbox_id' at '$__sandbox_root'"
 	echo ""
 	state=$(docker compose -f $__compose_file ps $__compose_service --format "State: {{.State}}")
 	if [ $? -ne 0 ]; then
@@ -539,9 +652,12 @@ sandbox_ps() {
 	fi
 
 	if [ -z "$state" ]; then
-		echo "State: not-running"
+		echo "$SCRIPT_NAME: State: not-running"
 	else
-		echo "$state"
+		echo "$SCRIPT_NAME: Sandbox '$__sandbox_id' status:"
+		echo ""
+		docker compose -f $__compose_file ps $__compose_service
+		echo ""
 	fi
 
 }
@@ -776,7 +892,7 @@ sync_env() {
 	echo "# DO NOT MODIFY!!!" >> $__compose_env_path
 	echo "# Run 'sb sync' to update." >> $__compose_env_path
 	echo "" >> $__compose_env_path
-	echo "COMPOSE_PROJECT_NAME=\"${SB_PROJECT_PREFIX:-}${SB_PROJECT_ID}-${sandbox}\"" >> $__compose_env_path
+	echo "COMPOSE_PROJECT_NAME=\"${SB_PROJECT_PREFIX:-}${SB_PROJECT_ID}-${__sandbox_id}\"" >> $__compose_env_path
 	echo "Done"
 	printf "%s\n" "${env[@]}" >> $__compose_env_path
 	if [ $? -ne 0 ]; then
@@ -862,14 +978,16 @@ sandbox_up() {
   fi  
   eval "$cmd_conf"
 
-  echo "$SCRIPT_NAME: Sandbox: $__sandbox_root"
-	echo "$SCRIPT_NAME: Running: docker compose -f $__compose_file up -d"
-  echo ""
+  echo "$SCRIPT_NAME: Ensuring: sandbox '$__sandbox_id' at '$__sandbox_root' is created and running"
+	echo "$SCRIPT_NAME: Running : docker compose -f $__compose_file up -d"
 	docker compose -f $__compose_file up -d
 	if [ $? -ne 0 ]; then
 		echo "$SCRIPT_NAME: Error: Sandbox 'up' failed"
 		exit 1
 	fi
+
+	echo ""
+	echo "$SCRIPT_NAME: Sandbox '$__sandbox_id' is running"
 
 }
 
@@ -885,7 +1003,7 @@ sandbox_down() {
   fi  
   eval "$cmd_conf"
 
-  echo "$SCRIPT_NAME: Sandbox: $__sandbox_root"
+  echo "$SCRIPT_NAME: Ensuring: tearing down sandbox '$__sandbox_id' at '$__sandbox_root'"
 	echo "$SCRIPT_NAME: Running: docker compose -f $__compose_file down"
   echo ""
 	docker compose -f $__compose_file down
@@ -893,6 +1011,9 @@ sandbox_down() {
 		echo "$SCRIPT_NAME: Error: Sandbox 'down' failed"
 		exit 1
 	fi
+
+	echo ""
+	echo "$SCRIPT_NAME: Sandbox teardown of '$__sandbox_id' completed"
 
 }
 
@@ -954,7 +1075,7 @@ sandbox_rm() {
 	echo ""
 
 	cwd=$(readlink -f $PWD)
-	#validation- ensure the 'sb delete' command is not being run from within the sandbox directory (or a sub-directory)
+	#validation- ensure the 'sb rm' command is not being run from within the sandbox directory (or a sub-directory)
 	if [[ $cwd = "$__sandbox_root" || "$cwd" == "$__sandbox_root"/* ]]; then
 		echo "$SCRIPT_NAME: Aborting- this command cannot be run within the sandbox directory tree"
 		exit 1
@@ -987,15 +1108,15 @@ sandbox_rm() {
 	echo "$SCRIPT_NAME: Deleting sandbox '$__sandbox_id' at '$__sandbox_root'"
 	echo ""
 
-	docker compose -f $__compose_file down -t 60 -v --remove-orphans
+	docker compose -f $__compose_file down -t 120 -v --remove-orphans
 	if [ $? -ne 0 ]; then
-	 	echo "$SCRIPT_NAME: Sandox deletion failed- 'docker compose down' failed"
+	 	echo "$SCRIPT_NAME: Sandbox deletion failed- 'docker compose down' failed"
 		exit 1
 	fi
 
 	rm -rf $__sandbox_root
 	if [ $? -ne 0 ]; then
-	 	echo "$SCRIPT_NAME: Sandox deletion failed- removal of sandbox files failed"
+	 	echo "$SCRIPT_NAME: Sandbox deletion failed- removal of sandbox files failed"
 		exit 1
 	fi
 
@@ -1313,6 +1434,18 @@ if [ $# -gt 0 ]; then
         sandbox=$1
         sandbox_kill $sandbox
 				;;     				
+		pause)
+				cmd_parser="$(getoptions parser_definition_pause)"
+        eval "$cmd_parser"
+        sandbox=$1
+        sandbox_pause $sandbox			
+				;;	
+		unpause)
+				cmd_parser="$(getoptions parser_definition_unpause)"
+        eval "$cmd_parser"
+        sandbox=$1
+        sandbox_unpause $sandbox			
+				;;					
 		ps)
 				cmd_parser="$(getoptions parser_definition_ps)"
         eval "$cmd_parser"
