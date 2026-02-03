@@ -87,10 +87,18 @@ RUN . /sandbox/user/sb-login.env && chown $SB_LOGIN_USER_NAME:$SB_LOGIN_GROUP_NA
 COPY entrypoint.sh /entrypoint.sh
 RUN chmod 755 /entrypoint.sh
 
-#-- bash config
+#-- .bashrc - user
 COPY dot-bashrc-init /tmp/.bashrc 
-RUN . /sandbox/user/sb-login.env && mv -f /tmp/.bashrc $SB_LOGIN_USER_HOME && chown $SB_LOGIN_USER_NAME:$SB_LOGIN_GROUP_NAME $SB_LOGIN_USER_HOME/.bashrc
+RUN . /sandbox/user/sb-login.env \
+    && mv -f /tmp/.bashrc $SB_LOGIN_USER_HOME \
+    && chown $SB_LOGIN_USER_NAME:$SB_LOGIN_GROUP_NAME $SB_LOGIN_USER_HOME/.bashrc
 
+
+#-- .bashrc - root
+RUN . /sandbox/user/sb-login.env \
+    && cp -f $SB_LOGIN_USER_HOME/.bashrc ~/.bashrc
+
+    
 #default- this is typically overwritten in the docker-compose.yml
 WORKDIR /workspace/
 
