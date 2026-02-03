@@ -10,7 +10,7 @@ Implement each task specified below
 
    - 'init'. See the 'init sub-command' section below for details.
 
-###  init sub-command
+### init sub-command
 
 #### Purpose 
 
@@ -39,4 +39,15 @@ The sub-command should do the following:
     ```
 
   - Write the absolute path to env/sb-templates to stdout. Following the same conventions for script output as bin/sb
+
+## Task 2: Update bin/sb-templates 'init' sub-command to populate image user password
+
+- Update the 'init' sub-command of the 'sb-templates' script in the bin/ folder as follows:
+
+  - Add a prompt for the image user password similar to the logic for the root password. 
+
+  - Save the generated hash in SB_TEMPLATES_IMAGE_USER_HASH in env/sb-templates.env
+
+
+
 

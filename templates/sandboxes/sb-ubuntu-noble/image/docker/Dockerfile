@@ -3,11 +3,14 @@ FROM ubuntu:noble-20260113
 #-- Build args
 ARG USER_ID
 ARG GROUP_ID
-ARG SUHASH=
+ARG SU_HASH
+ARG USER_HASH
 ARG TZ=UTC
-ARG v=sandbox
 ARG SB_LOGIN_USER_NAME_REQUESTED=sandbox
 ARG SB_USER_GROUP_REQUESTED=sandbox
+
+#validation
+RUN [ -n "$SU_HASH" ] || { echo "Required Docker build argument 'SU_HASH' is missing or empty- run 'sb-templates init' to generate SU_HASH"; exit 1; }
 
 ENV TZ="$TZ"
 
@@ -53,17 +56,18 @@ RUN mkdir -p /sandbox/user
 COPY get_or_create_sb_group.sh  /tmp
 RUN /tmp/get_or_create_sb_group.sh ${GROUP_ID} ${SB_USER_GROUP_REQUESTED} > /sandbox/user/sb-login.env
 
-RUN echo "cat /sandbox/user/sb-login.env"
-
 #get a user with the specified user ID (if exists) or create it (if it doesn't)
 COPY get_or_create_sb_user.sh  /tmp
-RUN . /sandbox/user/sb-login.env && /tmp/get_or_create_sb_user.sh ${USER_ID} ${SB_LOGIN_USER_NAME_REQUESTED} ${SB_LOGIN_GROUP_NAME} >> /sandbox/user/sb-login.env
+RUN . /sandbox/user/sb-login.env && /tmp/get_or_create_sb_user.sh ${USER_ID} ${SB_LOGIN_USER_NAME_REQUESTED} ${SB_LOGIN_GROUP_NAME} "${USER_HASH}" >> /sandbox/user/sb-login.env
 
-#-- pnpm global packages (installed in post-create.sh, stored in packages volume)
-# ENV PNPM_HOME=/workspace/main/.devcontainer-stores/packages/pnpm-global
-# ENV PATH=$PATH:$PNPM_HOME
 
-### SYSTEM CONFIG ###
+# set root password
+RUN if [ -n "$SU_HASH" ]; then \
+      usermod -p "$SU_HASH" root && \
+      echo "Root password set from SU_HASH"; \
+    else \
+      echo "WARNING: SU_HASH is empty - root login disabled"; \
+    fi
 
 #-- Git safe.directory (allows git in mounted workspace)
 RUN git config --global --add safe.directory /workspace
@@ -87,18 +91,12 @@ RUN chmod 755 /entrypoint.sh
 COPY dot-bashrc-init /tmp/.bashrc 
 RUN . /sandbox/user/sb-login.env && mv -f /tmp/.bashrc $SB_LOGIN_USER_HOME && chown $SB_LOGIN_USER_NAME:$SB_LOGIN_GROUP_NAME $SB_LOGIN_USER_HOME/.bashrc
 
-#-- Disable npm
-# USER root
-# RUN echo '#!/bin/sh\necho "ERROR: npm is disabled in this devcontainer. Use pnpm instead."\nexit 1' > /usr/local/bin/npm \
-#     && chmod +x /usr/local/bin/npm
-
-#default- this is changed in the docker-compose.yml
+#default- this is typically overwritten in the docker-compose.yml
 WORKDIR /workspace/
 
 ENV SHELL=/bin/bash
 ENV EDITOR=nano
 ENV VISUAL=nano
 ENV TERM=xterm-256color
-
 
 ENTRYPOINT [ "/entrypoint.sh" ]

@@ -33,9 +33,11 @@ parser_definition() {
 
 parser_definition_init() {
 	setup   REST error:error_init help:usage abbr:true -- "Usage: $SCRIPT_NAME init [<options>]"
-	msg -- '' 'Initializes the templates environment by generating a password hash for template images.'
+	msg -- '' 'Initializes the templates environment by generating password hashes for template images.'
 	msg -- ''
-	msg -- 'Creates env/sb-templates.env containing SB_TEMPLATES_IMAGE_SUHASH (the hashed root password).'
+	msg -- 'Creates env/sb-templates.env containing:'
+	msg -- '  - SB_TEMPLATES_IMAGE_SU_HASH (hashed root password for all sandbox images)'
+	msg -- '  - SB_TEMPLATES_IMAGE_USER_HASH (hashed user password for all sandbox images)'
 	msg -- ''
 	msg -- 'Options:'
 	flag    skip_confirm  -y    --skip-confirm    -- "Skip overwrite confirmation if env/sb-templates.env exists"
@@ -106,7 +108,7 @@ init_templates() {
 	# Password entry loop
 	while true; do
 
-		read -sp "$SCRIPT_NAME: Enter root password for template images: " pass
+		read -sp "$SCRIPT_NAME: Enter Docker password for user 'root': " pass
 		echo ""
 
 		if [ -z "$pass" ]; then
@@ -128,12 +130,41 @@ init_templates() {
 
 	done
 
-	# Generate hash
-	hash=$(openssl passwd -6 "$pass" | sed 's/\$/\$\$/g')
+	echo ""
+
+	# User password entry loop
+	while true; do
+
+		read -sp "$SCRIPT_NAME: Enter Docker password for login user: " user_pass
+		echo ""
+
+		if [ -z "$user_pass" ]; then
+			echo "$SCRIPT_NAME: Error: Password cannot be empty"
+			continue
+		fi
+
+		echo ""
+		read -sp "$SCRIPT_NAME: Re-enter password to confirm: " user_pass_confirm
+		echo ""
+
+		if [ "$user_pass" = "$user_pass_confirm" ]; then
+			break
+		else
+			echo ""
+			echo "$SCRIPT_NAME: Error: Passwords do not match, please try again"
+			echo ""
+		fi
+
+	done
+
+	# Generate hashes
+	hash=$(openssl passwd -6 "$pass")
+	user_hash=$(openssl passwd -6 "$user_pass")
 
 	# Write env file
 	cat <<EOF > $templates_env_path
-SB_TEMPLATES_IMAGE_SUHASH="$hash"
+SB_TEMPLATES_IMAGE_SU_HASH='$hash'
+SB_TEMPLATES_IMAGE_USER_HASH='$user_hash'
 EOF
 
 	if [ $? -ne 0 ]; then

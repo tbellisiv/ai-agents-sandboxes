@@ -8,3 +8,12 @@ Prompts:
 
 
 >Implement the plan specified in docs/dev/claude-plans/001_Add_sb-templates_cmd/plan-claude-task-1.md.
+
+# Implement task 2 in plan-overview.md
+
+Prompts:
+
+> Read the high-level plan in docs/dev/claude-plans/001_Add_sb-templates_cmd/plan-overview.md. Generate a detailed plan for task #2 and write the plan to docs/dev/claude-plans/001_Add_sb-templates_cmd/plan-claude-task-2.md.
+
+
+>Implement the plan specified in docs/dev/claude-plans/001_Add_sb-templates_cmd/plan-claude-task-2.md.
