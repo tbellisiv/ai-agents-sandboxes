@@ -58,7 +58,7 @@ RUN /tmp/get_or_create_sb_group.sh ${GROUP_ID} ${SB_USER_GROUP_REQUESTED} > /san
 
 #get a user with the specified user ID (if exists) or create it (if it doesn't)
 COPY get_or_create_sb_user.sh  /tmp
-RUN . /sandbox/user/sb-login.env && /tmp/get_or_create_sb_user.sh ${USER_ID} ${SB_LOGIN_USER_NAME_REQUESTED} ${SB_LOGIN_GROUP_NAME} "${USER_HASH}" >> /sandbox/user/sb-login.env
+RUN . /sandbox/user/sb-login.env && /tmp/get_or_create_sb_user.sh ${USER_ID} ${SB_LOGIN_USER_NAME_REQUESTED} ${SB_LOGIN_GROUP_NAME} '${USER_HASH}' >> /sandbox/user/sb-login.env
 
 
 # set root password
