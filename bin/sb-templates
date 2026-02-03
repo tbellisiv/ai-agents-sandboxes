@@ -1,0 +1,168 @@
+#!/bin/bash
+
+# shellcheck disable=SC2034
+
+SCRIPT_NAME=$(basename $0)
+SCRIPT_DIR=$(dirname $0)
+SCRIPT_VERSION=0.1
+
+LIB_DIR=$SCRIPT_DIR/../lib
+
+GETOPTIONS_LIB_PATH=$LIB_DIR/getoptions_lib
+
+if [ ! -f "$GETOPTIONS_LIB_PATH" ]; then
+    echo "$SCRIPT_NAME: Aborting- library '$GETOPTIONS_LIB_PATH' does not exist"
+    exit -1
+fi
+
+. $GETOPTIONS_LIB_PATH
+
+parser_definition() {
+	setup   REST help:usage abbr:true -- "Usage: $SCRIPT_NAME [<command>] [<command-options>]"
+
+	msg -- '' "${SCRIPT_NAME}: Commands for managing sandbox templates" ''
+
+	msg -- 'Options:'
+
+	disp    :usage  -h --help
+	disp    SCRIPT_VERSION    --version
+
+	msg         -- '' 'Commands:'
+	cmd init -- "Initializes templates environment configuration"
+}
+
+parser_definition_init() {
+	setup   REST error:error_init help:usage abbr:true -- "Usage: $SCRIPT_NAME init [<options>]"
+	msg -- '' 'Initializes the templates environment by generating a password hash for template images.'
+	msg -- ''
+	msg -- 'Creates env/sb-templates.env containing SB_TEMPLATES_IMAGE_SUHASH (the hashed root password).'
+	msg -- ''
+	msg -- 'Options:'
+	flag    skip_confirm  -y    --skip-confirm    -- "Skip overwrite confirmation if env/sb-templates.env exists"
+	disp    :usage        -h    --help
+}
+
+error_init() {
+	case $2 in
+		*) return 0 ;; # Display default error
+	esac
+	return 1
+}
+
+init_templates() {
+
+	sb_install_root=$(readlink -f $SCRIPT_DIR/..)
+	templates_env_path=$sb_install_root/env/sb-templates.env
+
+	echo ""
+
+	# Verify openssl is available
+	command -v openssl > /dev/null || {
+		echo "$SCRIPT_NAME: Aborting: 'openssl' command is not in installed or in PATH"
+		exit 1
+	}
+
+	# Check env directory exists
+	env_dir=$sb_install_root/env
+	if [ ! -d "$env_dir" ]; then
+		echo "$SCRIPT_NAME: Aborting- directory '$env_dir' does not exist"
+		exit 1
+	fi
+
+	# File existence check with overwrite prompt
+	if [ -f "$templates_env_path" ]; then
+		if [ -z "$skip_confirm" ]; then
+
+			echo "$SCRIPT_NAME: File '$templates_env_path' already exists."
+
+			echo ""
+
+			while true; do
+
+				read -r -p "$SCRIPT_NAME: Overwrite? [y(es) or n(o)]: " response
+				case $response in
+					[yY][eE][sS]|[yY] ) break ;;
+					[Nn][oO]|[Nn] )
+						echo ""
+						echo "$SCRIPT_NAME: Aborting- overwrite confirmation rejected"
+						exit 0
+						;;
+					* ) ;;
+				esac
+
+			done
+
+			echo ""
+
+		fi
+	fi
+
+
+	if [ -f "$templates_env_path" ]; then
+		echo "$SCRIPT_NAME: Warning- existing file '$templates_env_path' will be overwritten!"
+		echo ""
+	fi
+
+	# Password entry loop
+	while true; do
+
+		read -sp "$SCRIPT_NAME: Enter root password for template images: " pass
+		echo ""
+
+		if [ -z "$pass" ]; then
+			echo "$SCRIPT_NAME: Error: Password cannot be empty"
+			continue
+		fi
+
+		echo ""
+		read -sp "$SCRIPT_NAME: Re-enter password to confirm: " pass_confirm
+		echo ""
+
+		if [ "$pass" = "$pass_confirm" ]; then
+			break
+		else
+			echo ""
+			echo "$SCRIPT_NAME: Error: Passwords do not match, please try again"
+			echo ""
+		fi
+
+	done
+
+	# Generate hash
+	hash=$(openssl passwd -6 "$pass" | sed 's/\$/\$\$/g')
+
+	# Write env file
+	cat <<EOF > $templates_env_path
+SB_TEMPLATES_IMAGE_SUHASH="$hash"
+EOF
+
+	if [ $? -ne 0 ]; then
+		echo "$SCRIPT_NAME: Error: Failed to write '$templates_env_path'"
+		exit 1
+	fi
+
+	# Output absolute path
+	echo ""
+	echo "$SCRIPT_NAME: Generated file $(readlink -f $templates_env_path)"
+
+	echo ""
+	echo "$SCRIPT_NAME: Initialization complete"
+	echo ""
+}
+
+eval "$(getoptions parser_definition) exit 1"
+
+if [ $# -gt 0 ]; then
+	cmd=$1
+	shift
+	case $cmd in
+		init)
+			cmd_parser="$(getoptions parser_definition_init)"
+			eval "$cmd_parser"
+			init_templates
+			;;
+		--) # no subcommand, arguments only
+	esac
+else
+	usage
+fi
