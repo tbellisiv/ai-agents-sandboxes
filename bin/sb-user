@@ -194,6 +194,12 @@ EOF
   echo "$SCRIPT_NAME: Initialization complete"
   echo ""
   echo "$SCRIPT_NAME: User configuration directory: $user_sb_env_root"
+  echo ""
+  echo "$SCRIPT_NAME: Next Steps: Modify your Bash (or other shell) startup file to set the 'SB_USER_ENV_ROOT' environment variable:"
+  echo ""
+  echo "$SCRIPT_NAME:      export SB_USER_ENV_ROOT=\"$user_sb_env_root\""
+  echo ""
+  echo
 }
 
 eval "$(getoptions parser_definition) exit 1"

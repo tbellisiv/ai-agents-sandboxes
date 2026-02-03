@@ -73,7 +73,9 @@ init_project() {
 
   #Read the user's global defaults (if present)
   SB_USER_ENV_PATH=
-  if [[ -v XDG_CONFIG_HOME && -f "$XDG_CONFIG_HOME/sb-user.env" ]]; then
+  if [ -n "$SB_USER_ENV_ROOT" ]; then
+    SB_USER_ENV_PATH=$SB_USER_ENV_ROOT
+  elif [[ -v XDG_CONFIG_HOME && -f "$XDG_CONFIG_HOME/sb-user.env" ]]; then
     SB_USER_ENV_PATH="$XDG_CONFIG_HOME/sb-user.env"
   elif [ -f "$HOME/.config/sb/sb-user.env" ]; then
     SB_USER_ENV_PATH="$HOME/.config/sb/sb-user.env"

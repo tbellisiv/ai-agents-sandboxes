@@ -251,8 +251,11 @@ get_default_sandbox_id() {
 	fi
 
   #Read the user's global defaults (if present)
+	
   SB_USER_ENV_PATH=
-  if [[ -v XDG_CONFIG_HOME && -f "$XDG_CONFIG_HOME/user.env" ]]; then
+  if [ -n "$SB_USER_ENV_ROOT" ]; then
+    SB_USER_ENV_PATH=$SB_USER_ENV_ROOT
+  elif [[ -v XDG_CONFIG_HOME && -f "$XDG_CONFIG_HOME/user.env" ]]; then
     SB_USER_ENV_PATH="$XDG_CONFIG_HOME/user.env"
   elif [ -f "$HOME/.config/sb/user.env" ]; then
     SB_USER_ENV_PATH="$HOME/.config/sb/user.env"
@@ -318,7 +321,9 @@ get_sandbox_cmd_conf()
 
   #Read the user's global defaults (if present)
   user_env_root=
-  if [[ -v XDG_CONFIG_HOME && -d "$XDG_CONFIG_HOME/sb" ]]; then
+  if [ -n "$SB_USER_ENV_ROOT" ]; then
+    user_env_root=$SB_USER_ENV_ROOT
+  elif [[ -v XDG_CONFIG_HOME && -d "$XDG_CONFIG_HOME/sb" ]]; then
     user_env_root="$XDG_CONFIG_HOME/sb"
   elif [ -d "$HOME/.config/sb" ]; then
     user_env_root="$HOME/.config/sb"
@@ -1024,6 +1029,9 @@ sync_env() {
 	env=()
 	lines=()	
 
+	#source sb-project.env to get SB_PROJECT_PREFIX/SB_PROJECT_ID/SB_PROJECT_TZ
+	source $__project_root/sb-project.env
+
 	#add computed workspace env
 	workspace_main_root=$(readlink -f $__project_root/..)
  	env+=("SB_WORKSPACE_MAIN_ROOT=$workspace_main_root" "SB_WORKSPACE_MAIN_ROOT_DIRNAME=$(basename $workspace_main_root)")
@@ -1042,7 +1050,7 @@ sync_env() {
 	done
 
 	# add computed sandbox-level env
-	env+=("SB_SANDBOX_ROOT=$__sandbox_root" "SB_SANDBOX_ID=$__sandbox_id")
+	env+=("SB_SANDBOX_ROOT=$__sandbox_root" "SB_SANDBOX_ID=$__sandbox_id" "SB_SANDBOX_TZ=$SB_PROJECT_TZ")
 
 	# Add sandbox/login/compose env
 	env_files="$__sandbox_root/sb-sandbox.env $__sandbox_root/sb-login.env $__sandbox_root/sb-compose.env"
@@ -1057,8 +1065,6 @@ sync_env() {
 		fi
 	done
 
-	#source sb-project.env to get SB_PROJECT_PREFIX/SB_PROJECT_ID
-	source $__project_root/sb-project.env
 
 	# write the .env
 	echo "# This file is auto-generated." > $__compose_env_path
@@ -1074,37 +1080,6 @@ sync_env() {
 	if [ $? -ne 0 ]; then
 		echo "$SCRIPT_NAME: Error: Failed to write '$__compose_env_path'"
 		exit 1
-	fi
-
-	user_env_root=
-  if [[ -v XDG_CONFIG_HOME && -d "$XDG_CONFIG_HOME/sb" ]]; then
-    user_env_root="$XDG_CONFIG_HOME/sb"
-  elif [ -d "$HOME/.config/sb" ]; then
-    user_env_root="$HOME/.config/sb"
-  elif [ -f "$HOME/.sb" ]; then
-    user_env_root="$HOME/.sb"
-  fi
-
-	if [ -n "$user_env_root" ]; then
-		global_user_env_path=$(readlink -f $user_env_root/user.env)
-		sandbox_user_env_path=$__sandbox_root/user.env
-		if [ -f "$global_user_env_path" ]; then
-			echo "# This file is auto-generated from $global_user_env_path" > $sandbox_user_env_path
-			echo "# DO NOT MODIFY!!!" >> $sandbox_user_env_path
-			echo "# Run 'sb sync' to update." >> $sandbox_user_env_path
-			echo "" >> $sandbox_user_env_path
-			cat $global_user_env_path >> $sandbox_user_env_path
-		fi
-
-		global_user_secrets_env_path=$(readlink -f $user_env_root/user-secrets.env)
-		sandbox_user_secrets_env_path=$__sandbox_root/user-secrets.env
-		if [ -f "$global_user_secrets_env_path" ]; then
-			echo "# This file is auto-generated from $global_user_secrets_env_path" > $sandbox_user_secrets_env_path
-			echo "# DO NOT MODIFY!!!" >> $sandbox_user_secrets_env_path
-			echo "# Run 'sb sync' to update." >> $sandbox_user_secrets_env_path
-			echo "" >> $sandbox_user_secrets_env_path
-			cat $global_user_secrets_env_path >> $sandbox_user_secrets_env_path
-		fi
 	fi
 
 	echo ""
@@ -1302,6 +1277,8 @@ sandbox_rm() {
 
 sandbox_new() {
 
+	echo ""
+
   #validate sandbox ID format (if specified)
   regex='^[a-zA-Z](-|_|[a-zA-z]|[0-9]$)*'
   if [ -n "$sandbox" ]; then
@@ -1325,7 +1302,9 @@ sandbox_new() {
 
 	#Read the user's global defaults (if present)
   SB_USER_ENV_PATH=
-  if [[ -v XDG_CONFIG_HOME && -f "$XDG_CONFIG_HOME/user.env" ]]; then
+  if [ -n "$SB_USER_ENV_ROOT" ]; then
+    SB_USER_ENV_PATH=$SB_USER_ENV_ROOT
+  elif [[ -v XDG_CONFIG_HOME && -f "$XDG_CONFIG_HOME/user.env" ]]; then
     SB_USER_ENV_PATH="$XDG_CONFIG_HOME/user.env"
   elif [ -f "$HOME/.config/sb/user.env" ]; then
     SB_USER_ENV_PATH="$HOME/.config/sb/user.env"
@@ -1342,7 +1321,7 @@ sandbox_new() {
 		#search for project root
 		project_path=$(dir_search_tree_up_by_dirname ".sb") 
 		if [ -z "$project_path" ]; then
-			echo  "$SCRIPT_NAME: Error: Unable to find sandbox project root directory. 'cd' into the directory tree containing the sandbox project or run 'sb-project init' to create a project"
+			echo  "$SCRIPT_NAME: Error: Unable to find sandbox project root directory. 'cd' into the directory tree containing the sandbox project or run 'sb-project init' to create a new roject"
 			exit 1
 		fi
 	else
