@@ -1,0 +1,14 @@
+# Example: Mount an additional dev project into the container
+#
+# services:
+#   sandbox:
+#         volumes:
+#             # Mount another_project/ in the host to /workspace/another_project
+#             - workspace_main:/workspace/user_another_project:delegated    
+# volumes:
+#     user_another_project:
+#         driver: local
+#         driver_opts:
+#             type: none
+#             device: /path/to/another_project
+#             o: bind

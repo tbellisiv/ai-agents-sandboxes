@@ -84,6 +84,7 @@ init_user_env() {
 
   user_env_path=$user_sb_env_root/user.env
   user_secrets_env_path=$user_sb_env_root/user-secrets.env
+  user_compose_include_path=$user_sb_env_root/user-compose-include.yml
   user_modules_dir_path=$user_sb_env_root/modules
   user_example_module_dir_path=$user_modules_dir_path/user-example
 
@@ -102,10 +103,31 @@ EOF
 
   echo "$SCRIPT_NAME: Creating file: $user_secrets_env_path"
   cat <<EOF > $user_secrets_env_path
-#CLAUDE_CODE_OAUTH_TOKEN=
 EOF
   if [ $? -ne 0 ]; then
 		echo  "$SCRIPT_NAME: Aborting sandbox user config initialization- failed to create file '$user_secrets_env_path'"
+		exit 1
+	fi
+
+  echo "$SCRIPT_NAME: Creating file: $user_compose_include_path"
+  cat <<EOF > $user_compose_include_path
+# Example: Mount an additional dev project into the container
+#
+# services:
+#   sandbox:
+#         volumes:
+#             # Mount another_project/ in the host to /workspace/another_project
+#             - workspace_main:/workspace/user_another_project:delegated    
+# volumes:
+#     user_another_project:
+#         driver: local
+#         driver_opts:
+#             type: none
+#             device: /path/to/another_project
+#             o: bind
+EOF
+  if [ $? -ne 0 ]; then
+		echo  "$SCRIPT_NAME: Aborting sandbox user config initialization- failed to create file '$user_compose_include_path'"
 		exit 1
 	fi
 

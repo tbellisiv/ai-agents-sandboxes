@@ -1,3 +1,8 @@
+include:
+    - ./user-compose-include.yml
+    - $SB_PROJECT_ROOT/sb-project-compose-include.yml
+    - $SB_USER_ENV_ROOT/user-compose-include.yml
+
 services:
     sandbox:
         container_name: "${COMPOSE_PROJECT_NAME}"

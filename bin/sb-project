@@ -112,7 +112,29 @@ EOF
 		echo  "Failed\n$SCRIPT_NAME: Error: Failed to create project file '$project_env_path'"
 		exit 1
 	fi
-  echo "Done"
+
+  project_compose_volumes_path="$path_abs/sb-project-compose-include.yml"
+  echo "$SCRIPT_NAME: Creating file: $project_compose_volumes_path"
+  cat <<EOF > $project_compose_volumes_path
+# Example: Mount an additional dev project into the container
+#
+# services:
+#   sandbox:
+#         volumes:
+#             # Mount another_project/ in the host to /workspace/another_project
+#             - workspace_main:/workspace/user_another_project:delegated    
+# volumes:
+#     user_another_project:
+#         driver: local
+#         driver_opts:
+#             type: none
+#             device: /path/to/another_project
+#             o: bind
+EOF
+  if [ $? -ne 0 ]; then
+		echo  "Failed\n$SCRIPT_NAME: Error: Failed to create project file '$project_compose_volumes_path'"
+		exit 1
+	fi
 
   echo "$SCRIPT_NAME: Creating dir : ${project_modules_dir_path}/"
   mkdir -p $project_modules_dir_path
