@@ -31,6 +31,7 @@ RUN DEBIAN_FRONTEND=noninteractive apt-get update && apt-get upgrade -y && apt-g
     unzip \
     vim \
     wget \
+    openssh-client \
     # required to compile opensnitch-controller:
     protobuf-compiler \
     bash-completion
