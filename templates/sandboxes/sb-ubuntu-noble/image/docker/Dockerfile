@@ -60,7 +60,6 @@ RUN /tmp/get_or_create_sb_group.sh ${GROUP_ID} ${SB_USER_GROUP_REQUESTED} > /san
 COPY get_or_create_sb_user.sh  /tmp
 RUN . /sandbox/user/sb-login.env && /tmp/get_or_create_sb_user.sh ${USER_ID} ${SB_LOGIN_USER_NAME_REQUESTED} ${SB_LOGIN_GROUP_NAME} '${USER_HASH}' >> /sandbox/user/sb-login.env
 
-
 # set root password
 RUN if [ -n "$SU_HASH" ]; then \
       usermod -p "$SU_HASH" root && \
@@ -72,9 +71,6 @@ RUN if [ -n "$SU_HASH" ]; then \
 #-- Git safe.directory (allows git in mounted workspace)
 RUN git config --global --add safe.directory /workspace
 
-#apt cleanup
-RUN apt-get clean && rm -rf /var/lib/apt/lists/*
-
 #-- Unset SUID bits
 RUN chmod u-s /usr/bin/mount /usr/bin/umount /usr/bin/chsh \
     /usr/bin/chfn /usr/bin/gpasswd /usr/bin/newgrp /usr/bin/passwd
@@ -82,6 +78,20 @@ RUN chmod u-s /usr/bin/mount /usr/bin/umount /usr/bin/chsh \
 #workspace
 RUN mkdir -p /workspace
 RUN . /sandbox/user/sb-login.env && chown $SB_LOGIN_USER_NAME:$SB_LOGIN_GROUP_NAME /workspace
+
+########## SDK / Dev Tools Install
+
+# gcloud SDK
+COPY gcloud-sdk-install.sh /tmp
+RUN /tmp/gcloud-sdk-install.sh
+
+# GitHub CLI
+COPY dotnet-sdk-install.sh /tmp
+RUN /tmp/dotnet-sdk-install.sh
+
+# dotnet SDK
+COPY gh-cli-install.sh /tmp
+RUN /tmp/gh-cli-install.sh
 
 #entrypoint
 COPY entrypoint.sh /entrypoint.sh
@@ -98,6 +108,8 @@ RUN . /sandbox/user/sb-login.env \
 RUN . /sandbox/user/sb-login.env \
     && cp -f $SB_LOGIN_USER_HOME/.bashrc ~/.bashrc
 
+#apt cleanup
+RUN apt-get clean && rm -rf /var/lib/apt/lists/*
     
 #default- this is typically overwritten in the docker-compose.yml
 WORKDIR /workspace/
