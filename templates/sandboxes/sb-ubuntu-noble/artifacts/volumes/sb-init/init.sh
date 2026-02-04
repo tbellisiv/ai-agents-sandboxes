@@ -6,6 +6,10 @@ SCRIPT_NAME=$(basename $0)
 init_status=0
 
 # ----- Init: modules ------
+$SCRIPT_DIR/ssh-init.sh
+ssh_init=$?
+
+# ----- Init: modules ------
 $SCRIPT_DIR/modules-init.sh
 module_init=$?
 
@@ -18,6 +22,11 @@ $SCRIPT_DIR/claude-init.sh
 claude_init_status=$?
 
 echo ""
+if [ $ssh_init -ne 0 ]; then
+  init_status=1
+  echo "$SCRIPT_NAME: Warning- SSH initialization failed"
+  echo ""
+fi
 if [ $module_init -ne 0 ]; then
   init_status=1
   echo "$SCRIPT_NAME: Warning- module initialization failed"
