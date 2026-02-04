@@ -254,7 +254,7 @@ get_default_sandbox_id() {
 	
   SB_USER_ENV_PATH=
   if [ -n "$SB_USER_ENV_ROOT" ]; then
-    SB_USER_ENV_PATH=$SB_USER_ENV_ROOT
+    SB_USER_ENV_PATH="$SB_USER_ENV_ROOT/user.env"
   elif [[ -v XDG_CONFIG_HOME && -f "$XDG_CONFIG_HOME/user.env" ]]; then
     SB_USER_ENV_PATH="$XDG_CONFIG_HOME/user.env"
   elif [ -f "$HOME/.config/sb/user.env" ]; then
@@ -1032,10 +1032,6 @@ sync_env() {
 	#source sb-project.env to get SB_PROJECT_PREFIX/SB_PROJECT_ID/SB_PROJECT_TZ
 	source $__project_root/sb-project.env
 
-	#add computed workspace env
-	workspace_main_root=$(readlink -f $__project_root/..)
- 	env+=("SB_WORKSPACE_MAIN_ROOT=$workspace_main_root" "SB_WORKSPACE_MAIN_ROOT_DIRNAME=$(basename $workspace_main_root)")
-
 	#project env
 	env+=("SB_PROJECT_ROOT=$__project_root")
 	env_files="$__project_root/sb-project.env"
@@ -1230,6 +1226,8 @@ sandbox_rm() {
 		exit 1
 	fi
 
+	#validation- ensure there are no user-created files in modules, user.env or user-secrets.env
+	## TODO
 
 	if [ -z "$confirm" ]; then
 		
@@ -1303,7 +1301,7 @@ sandbox_new() {
 	#Read the user's global defaults (if present)
   SB_USER_ENV_PATH=
   if [ -n "$SB_USER_ENV_ROOT" ]; then
-    SB_USER_ENV_PATH=$SB_USER_ENV_ROOT
+    SB_USER_ENV_PATH="$SB_USER_ENV_ROOT/user.env"
   elif [[ -v XDG_CONFIG_HOME && -f "$XDG_CONFIG_HOME/user.env" ]]; then
     SB_USER_ENV_PATH="$XDG_CONFIG_HOME/user.env"
   elif [ -f "$HOME/.config/sb/user.env" ]; then
@@ -1422,6 +1420,13 @@ sandbox_new() {
 
 	echo "$SCRIPT_NAME: Creating sandbox '$sandbox' from${template_source} template '$template'"
 
+	echo "$SCRIPT_NAME: Building/refreshing template image"
+	$template_hook_create_build_script_path $sandbox_dest_path
+	if [ $? -ne 0 ]; then
+		echo "$SCRIPT_NAME: Error: Failed to create new sandbox- template image build failed"
+		exit 1
+	fi
+
 	echo "$SCRIPT_NAME: Creating sandbox directory '$sandbox_dest_path'"
 	mkdir -p $sandbox_dest_path
 	if [ $? -ne 0 ]; then
@@ -1451,13 +1456,6 @@ sandbox_new() {
 			echo "$SCRIPT_NAME: Error: Failed to create new sandbox- template artifact post-copy failed"
 			exit 1
 		fi
-	fi
-
-	echo "$SCRIPT_NAME: Building/refreshing template image"
-	$template_hook_create_build_script_path $sandbox_dest_path
-	if [ $? -ne 0 ]; then
-		echo "$SCRIPT_NAME: Error: Failed to create new sandbox- template image build failed"
-		exit 1
 	fi
 
 	sync_env

@@ -15,6 +15,8 @@ if [ -z "$1" ]; then
   exit 1
 fi
 
+echo "${SCRIPT_MSG_PREFIX}: Executing post-copy steps"
+
 new_sandbox_path=$1
 
 if [ ! -d $new_sandbox_path ]; then
@@ -57,3 +59,4 @@ if [ $? -ne 0 ]; then
   echo "${SCRIPT_MSG_PREFIX}: Warning- failed to remove from temporary container '$temp_container_name'"
 fi
 
+echo "${SCRIPT_MSG_PREFIX}: Post-copy steps completed"

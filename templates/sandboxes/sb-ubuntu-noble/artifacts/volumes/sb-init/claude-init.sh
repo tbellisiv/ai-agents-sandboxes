@@ -1,4 +1,4 @@
-#/bin/bash
+#!/bin/bash
 
 SCRIPT_DIR=$(dirname $0)
 SCRIPT_NAME=$(basename $0)
@@ -10,18 +10,28 @@ if [ ! -d "$HOME/.claude" ]; then
   ln -s /sandbox/user/.claude "$HOME/.claude"
 fi
 
-#create empty file and symlink for $HOME/.claude.json
-if [[ ! -f "$HOME/.claude.json" && ! -f /sandbox/user/.claude.json ]]; then
-  echo "$SCRIPT_NAME: Creating symlink to empty file: sb $HOME/.claude.json --> /sandbox/user/.claude (volume mount)"
-  touch /sandbox/user/.claude.json
-  ln -s /sandbox/user/.claude.json "$HOME/.claude.json"
+#create empty json  and symlink for $HOME/.claude.json
+if [ ! -f "$HOME/.claude.json" ]; then
+
+  #initialize .claude.json if needed
+  if [ ! -f /sandbox/user/.claude.json ]; then
+
+    # If a CLAUDE OAUTH token or API Key is in the environment initialize claude.json to bypass prompting the user for authentication on initial claude execution
+    if [[ -n "$CLAUDE_CODE_OAUTH_TOKEN" || -n "$ANTHROPIC_API_KEY" ]]; then
+      echo "$SCRIPT_NAME: Initializing .claude.json: '{\"hasCompletedOnboarding\": true}'"
+      echo '{"hasCompletedOnboarding": true}' > /sandbox/user/.claude.json
+    else
+      #create an empty JSON file
+      echo "$SCRIPT_NAME: Initializing .claude.json: '{ }'"
+      echo '{ }' > /sandbox/user/.claude.json
+    fi
+
+    #create the symlink
+    echo "$SCRIPT_NAME: Creating symlink: $HOME/.claude.json --> /sandbox/user/.claude (volume mount)"
+    ln -s /sandbox/user/.claude.json "$HOME/.claude.json"
+  fi
 fi
 
-
-#Need to prevent CC from prompting to authenticate- even though CLAUDE_CODE_OAUTH_TOKEN/ANTHROPIC_API_KEY is defined
-if [[ (-n "$CLAUDE_CODE_OAUTH_TOKEN" || -n "$ANTHROPIC_API_KEY") && ! -f HOME/.claude.json ]]; then
-    echo '{"hasCompletedOnboarding": true}' > /$HOME/.claude.json
-fi
 
 command -v claude &> /dev/null
 if [ $? -ne 0 ]; then
@@ -31,7 +41,7 @@ if [ $? -ne 0 ]; then
   echo ""
 
   curl -fsSL https://claude.ai/install.sh | bash
-  if [ $? -ne -0 ]; then
+  if [ $? -ne 0 ]; then
     echo "$SCRIPT_NAME: Aborting- Claude install failed"
     exit 1
   fi
@@ -47,7 +57,7 @@ else
   echo ""
 
   claude update
-  if [ $? -ne -0 ]; then
+  if [ $? -ne 0 ]; then
     echo "$SCRIPT_NAME: Aborting- Claude update failed"
     exit 1
   fi

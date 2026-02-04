@@ -10,6 +10,13 @@ TEMPLATE_HOOK=$(basename $SCRIPT_NAME ".sh")
 
 SCRIPT_MSG_PREFIX="[template=$TEMPLATE_ID operation=$TEMPLATE_OPERATION hook=$TEMPLATE_HOOK]"
 
+if [ -z "$1" ]; then
+  echo "${SCRIPT_MSG_PREFIX}: Usage $SCRIPT_NAME <new-sandbox-path>"
+  exit 1
+fi
+
+echo "${SCRIPT_MSG_PREFIX}: Building/refreshing image"
+
 new_sandbox_path=$1
 
 template_image_path=$TEMPLATE_DIR/image
@@ -24,3 +31,4 @@ if [ $? -ne 0 ]; then
   exit 1
 fi
 
+echo "${SCRIPT_MSG_PREFIX}: Image build/refresh complete"

@@ -1,7 +1,5 @@
 #!/bin/bash
 
-set -u
-
 # shellcheck disable=SC2034
 
 SCRIPT_NAME=$(basename $0)    #equivalent to ${0##*/}
@@ -102,12 +100,11 @@ init_project() {
   cat <<EOF > $project_env_path
 SB_PROJECT_ID="$id"
 SB_PROJECT_PREFIX="sandbox-"
-
 SB_PROJECT_TZ="$(timedatectl status | grep "Time zone" | awk '{print $3}')"
-
+SB_PROJECT_WORKSPACE_MAIN_ROOT=$(readlink -f $path_abs/..)
+SB_PROJECT_WORKSPACE_MAIN_ROOT_DIRNAME=$(basename $(readlink -f $path_abs/..))
 SB_PROJECT_MODULE_SEARCH_PATH="${project_modules_dir_path}"
 #SB_PROJECT_DEFAULT_MODULES=("$(basename $project_example_module_dir_path)")
-
 #SB_PROJECT_DEFAULT_SANDBOX_ID=
 #SB_PROJECT_DEFAULT_TEMPLATE_ID=
 EOF
