@@ -3,7 +3,7 @@
 SCRIPT_DIR=$(dirname $0)
 SCRIPT_NAME=$(basename $0)
 
-#create symlink for $HOME/.claude to /sandbox/user/.claude
+#create symlink for $HOME/.ssh to /sandbox/user-secrets/.ssh
 if [ ! -d "$HOME/.ssh" ]; then
   echo "$SCRIPT_NAME: Creating symlink: $HOME/.ssh --> /sandbox/user-secrets/.ssh (volume mount)"
   mkdir -p /sandbox/user-secrets/.ssh
