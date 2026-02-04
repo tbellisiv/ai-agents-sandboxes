@@ -12,7 +12,7 @@ if [ ! -d "$HOME/.ssh" ]; then
     exit 1
   fi
   
-  chmod 644 /sandbox/user-secrets/.ssh
+  chmod 700 /sandbox/user-secrets/.ssh
   if [ $? -ne 0 ]; then
     echo "$SCRIPT_NAME: Aborting- .ssh/ permissions change failed"
     exit 1
