@@ -186,7 +186,23 @@ EOF
 		exit 1
 	fi
 
-  hook_init_script_path=$hooks_dir/init.sh
+  init_hooks_dir=${hooks_dir}/init
+  echo "$SCRIPT_NAME: Creating dir : ${init_hooks_dir}/"
+  mkdir -p $init_hooks_dir
+  if [ $? -ne 0 ]; then
+		echo  "$SCRIPT_NAME: Aborting sandbox user config initialization- failed to create directory '$init_hooks_dir'"
+		exit 1
+	fi
+
+  shell_login_hooks_dir=${hooks_dir}/shell-login
+  echo "$SCRIPT_NAME: Creating dir : ${shell_login_hooks_dir}/"
+  mkdir -p $shell_login_hooks_dir
+  if [ $? -ne 0 ]; then
+		echo  "$SCRIPT_NAME: Aborting sandbox user config initialization- failed to create directory '$shell_login_hooks_dir'"
+		exit 1
+	fi
+
+  hook_init_script_path=$init_hooks_dir/init.sh
   echo "$SCRIPT_NAME: Creating file: ${hook_init_script_path}"
   cat <<EOF > $hook_init_script_path
 #! /bin/bash
@@ -216,6 +232,38 @@ EOF
 		echo  "$SCRIPT_NAME: Error: Aborting sandbox project- initialization- failed to set execute permissions on file '$hook_init_script_path'"
 		exit 1
 	fi
+
+  hook_shell_login_script_path=$shell_login_hooks_dir/login.sh
+  echo "$SCRIPT_NAME: Creating file: ${hook_shell_login_script_path}"
+  cat <<EOF > $hook_shell_login_script_path
+#! /bin/bash
+
+SCRIPT_DIR=\$(readlink -f \$(dirname \$0))
+SCRIPT_NAME=\$(basename \$0)
+
+MODULE_DIR=\$(readlink -f \$SCRIPT_DIR/..)
+MODULE_NAME=\$(basename \$MODULE_DIR)
+MODULE_HOOK=\$(basename \$SCRIPT_NAME ".sh")
+
+SCRIPT_MSG_PREFIX="[module=\$MODULE_NAME hook=\$MODULE_HOOK]"
+
+echo "\$SCRIPT_MSG_PREFIX: Initializing"
+
+echo "\$SCRIPT_MSG_PREFIX: Initialization complete"
+
+exit 0
+EOF
+  if [ $? -ne 0 ]; then
+		echo  "$SCRIPT_NAME: Aborting sandbox user config initialization- failed to create file '$hook_shell_login_script_path'"
+		exit 1
+	fi
+
+  chmod 755 $hook_shell_login_script_path
+  if [ $? -ne 0 ]; then
+		echo  "$SCRIPT_NAME: Error: Aborting sandbox user config initialization- failed to set execute permissions on file '$hook_shell_login_script_path'"
+		exit 1
+	fi
+
 
   sandboxes_root_dir=$path_abs/sandboxes
   echo "$SCRIPT_NAME: Creating dir : ${sandboxes_root_dir}/"

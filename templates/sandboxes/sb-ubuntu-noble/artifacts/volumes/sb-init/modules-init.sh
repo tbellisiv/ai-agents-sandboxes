@@ -13,7 +13,7 @@ if [ -d $modules_root ]; then
 
     for mod in "${modules[@]}"; do
 
-      mod_init_script="${modules_root}/$mod/hooks/init.sh"
+      mod_init_script="${modules_root}/$mod/hooks/init/init.sh"
 
       if [ -f "$mod_init_script" ]; then
 

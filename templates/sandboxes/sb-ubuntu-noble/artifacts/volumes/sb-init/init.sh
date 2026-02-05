@@ -5,17 +5,13 @@ SCRIPT_NAME=$(basename $0)
 
 init_status=0
 
-# ----- Init: modules ------
+# ----- Init: SSH ------
 $SCRIPT_DIR/ssh-init.sh
 ssh_init=$?
 
-# ----- Init: modules ------
+# ----- Init: nuget ------
 $SCRIPT_DIR/nuget-init.sh
 nuget_init=$?
-
-# ----- Init: modules ------
-$SCRIPT_DIR/modules-init.sh
-module_init=$?
 
 # ----- Init: nvm/node ------
 $SCRIPT_DIR/nvm-init.sh
@@ -24,6 +20,10 @@ nvm_init_status=$?
 # ----- Init: Claude
 $SCRIPT_DIR/claude-init.sh
 claude_init_status=$?
+
+# ----- Init: modules ------
+$SCRIPT_DIR/modules-init.sh
+module_init=$?
 
 echo ""
 if [ $nuget_init -ne 0 ]; then
