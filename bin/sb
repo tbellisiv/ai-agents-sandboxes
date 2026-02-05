@@ -163,7 +163,8 @@ parser_definition_logs() {
 	setup   REST error:error_init help:usage abbr:true -- "Usage: $SCRIPT_NAME logs [<sandbox>] [<options>]"
 	msg -- '' 'Displays sandbox container logs'
 	msg -- 'Options:'
-	param   project_path  -p    --project-path                                                                                    -- "The path to the project directory (the ".sb" directory). If not specified, $SCRIPT_NAME will attempt to find the path based on the current directory"
+	flag    follow        -f    --follow                                                                                          -- "Follow log output (tail -f style)"
+	param   project_path  -p    --project-path                                                                                    -- "The path to the project directory (the \".sb\" directory). If not specified, $SCRIPT_NAME will attempt to find the path based on the current directory"
 	disp    :usage        -h    --help
 }
 
@@ -684,13 +685,19 @@ sandbox_logs() {
       echo "$cmd_conf"
     fi
     exit 1
-  fi  
+  fi
   eval "$cmd_conf"
 
+  # Build the follow option if specified
+  follow_opt=""
+  if [ -n "$follow" ]; then
+    follow_opt="-f"
+  fi
+
   echo "$SCRIPT_NAME: Sandbox: $__sandbox_root"
-	echo "$SCRIPT_NAME: Running: docker compose $__compose_file logs $__compose_service --no-log-prefix -t --no-color"
+	echo "$SCRIPT_NAME: Running: docker compose -f $__compose_file logs $__compose_service --no-log-prefix -t --no-color $follow_opt"
 	echo ""
-	docker compose -f $__compose_file logs $__compose_service --no-log-prefix -t --no-color
+	docker compose -f $__compose_file logs $__compose_service --no-log-prefix -t --no-color $follow_opt
 
 }
 
@@ -1607,7 +1614,7 @@ if [ $# -gt 0 ]; then
         sandbox_ps $sandbox
 				;;   
 		logs)
-				cmd_parser="$(getoptions parser_definition_ps)"
+				cmd_parser="$(getoptions parser_definition_logs)"
         eval "$cmd_parser"
         sandbox=$1
         sandbox_logs $sandbox

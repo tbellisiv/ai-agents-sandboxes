@@ -37,6 +37,11 @@ s
   - Update line 47 of templates/sandboxes/sb-ubuntu-noble-fw/hooks/create/copy.sh to unconditionally set SB_IMAGE=sb-ubuntu-noble-fw:latest instead of attempting to match based on a regex.
 
 
-  ## Task 3:  Add a sb-template list sub-command
+  ## Task 3:  Add a sub-template list sub-command
 
-  The subcommand should each template available. The output should list each template name and the associatd docker image (in sb-sandbox.env)
+  The subcommand should list each template available. The output should list each template name and it's associatd docker image (specified in sb-sandbox.env)
+
+  ## Task 4: Add a '-f' option to the 'sb logs' sub-command to tail the sandbox container logs
+
+  - If the '-f' option is specified appennd the '-f' option to the 'docker compose logs' command.
+

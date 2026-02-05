@@ -29,6 +29,7 @@ parser_definition() {
 
 	msg         -- '' 'Commands:'
 	cmd init -- "Initializes templates environment configuration"
+	cmd list -- "Lists available sandbox templates"
 }
 
 parser_definition_init() {
@@ -49,6 +50,14 @@ error_init() {
 		*) return 0 ;; # Display default error
 	esac
 	return 1
+}
+
+parser_definition_list() {
+	setup   REST help:usage abbr:true -- "Usage: $SCRIPT_NAME list [<options>]"
+	msg -- '' 'Lists all available sandbox templates and their associated Docker images.'
+	msg -- ''
+	msg -- 'Options:'
+	disp    :usage        -h    --help
 }
 
 init_templates() {
@@ -181,6 +190,58 @@ EOF
 	echo ""
 }
 
+list_templates() {
+
+	sb_install_root=$(readlink -f $SCRIPT_DIR/..)
+	templates_dir=$sb_install_root/templates/sandboxes
+
+	# Check templates directory exists
+	if [ ! -d "$templates_dir" ]; then
+		echo "$SCRIPT_NAME: Error: Templates directory '$templates_dir' does not exist"
+		exit 1
+	fi
+
+	# Print header
+	printf "\n%-25s %s\n" "Template ID" "Docker Image"
+	printf "%-25s %s\n" "-----------" "------------"
+
+	# Find and iterate over template directories
+	found_templates=0
+	for template_path in "$templates_dir"/*/; do
+		# Skip if not a directory
+		[ -d "$template_path" ] || continue
+
+		template_name=$(basename "$template_path")
+		env_file="$template_path/artifacts/sb-sandbox.env"
+
+		# Check if sb-sandbox.env exists
+		if [ -f "$env_file" ]; then
+			# Source the env file to get variables
+			SB_TEMPLATE_ID=""
+			SB_IMAGE=""
+			. "$env_file"
+
+			# Use directory name if SB_TEMPLATE_ID not set
+			template_id="${SB_TEMPLATE_ID:-$template_name}"
+			image="${SB_IMAGE:-<not specified>}"
+
+			printf "%-25s %s\n" "$template_id" "$image"
+			found_templates=1
+		else
+			# Template exists but no sb-sandbox.env
+			printf "%-25s %s\n" "$template_name" "<NA- no sb-sandbox.env>"
+			found_templates=1
+		fi
+	done
+
+	if [ $found_templates -eq 0 ]; then
+		echo ""
+		echo "$SCRIPT_NAME: No templates found in '$templates_dir'"
+	fi
+
+	echo ""
+}
+
 eval "$(getoptions parser_definition) exit 1"
 
 if [ $# -gt 0 ]; then
@@ -191,6 +252,11 @@ if [ $# -gt 0 ]; then
 			cmd_parser="$(getoptions parser_definition_init)"
 			eval "$cmd_parser"
 			init_templates
+			;;
+		list)
+			cmd_parser="$(getoptions parser_definition_list)"
+			eval "$cmd_parser"
+			list_templates
 			;;
 		--) # no subcommand, arguments only
 	esac
