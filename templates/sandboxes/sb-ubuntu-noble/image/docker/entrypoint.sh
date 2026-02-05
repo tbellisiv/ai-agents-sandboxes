@@ -3,7 +3,7 @@
 SCRIPT_DIR=$(dirname $0)
 SCRIPT_NAME=$(basename $0)
 
-INIT_SCRIPT_PATH=/sandbox/init/init.sh
+INIT_SCRIPT_PATH=/sandbox/hooks/init/init.sh
 
 if [ -z "$@" ]; then
   if [ -f "$INIT_SCRIPT_PATH" ]; then

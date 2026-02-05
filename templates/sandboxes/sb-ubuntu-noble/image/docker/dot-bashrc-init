@@ -47,3 +47,8 @@ alias hr="fc -ln 1 | sed 's/^\s*//'" #show "raw" history (i.e without line numbe
 git config --global core.autocrlf input  #ensure LF's stay in repo, 
 
 export PATH=$HOME/.local/bin:$PATH
+
+# execute shell login hooks provided by modules
+if [ -f /sandbox/hooks/shell-login/shell-login.sh ]; then
+  /sandbox/hooks/shell-login/shell-login.sh
+fi

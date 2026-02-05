@@ -9,8 +9,4 @@ MODULE_HOOK=$(basename $SCRIPT_NAME ".sh")
 
 SCRIPT_MSG_PREFIX="[module=$MODULE_NAME hook=$MODULE_HOOK]"
 
-echo "$SCRIPT_MSG_PREFIX: Initializing"
-
-echo "$SCRIPT_MSG_PREFIX: Initialization complete"
-
 exit 0

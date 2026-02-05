@@ -1319,7 +1319,7 @@ sandbox_new() {
 		#search for project root
 		project_path=$(dir_search_tree_up_by_dirname ".sb") 
 		if [ -z "$project_path" ]; then
-			echo  "$SCRIPT_NAME: Error: Unable to find sandbox project root directory. 'cd' into the directory tree containing the sandbox project or run 'sb-project init' to create a new roject"
+			echo  "$SCRIPT_NAME: Error: Unable to find sandbox project root directory. 'cd' into the directory tree containing the sandbox project or run 'sb-project init' to create a new project"
 			exit 1
 		fi
 	else

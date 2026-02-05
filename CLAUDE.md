@@ -92,15 +92,23 @@ ai-agents-sandboxes/
 ### Template Structure (`templates/sandboxes/<template-id>/`)
 - `image/docker/` - Dockerfile and container scripts (entrypoint.sh, SDK installers)
 - `artifacts/` - Files copied to sandbox (docker-compose.yml, volumes/, modules/)
+  - `volumes/sb-hooks/` - Container lifecycle hooks:
+    - `init/` - Container init scripts (init.sh, ssh-init.sh, nuget-init.sh, nvm-init.sh, claude-init.sh, modules-init.sh)
+    - `shell-login/` - Shell login scripts (run-module-hooks.sh)
+  - `modules/example/` - Example module with init and shell-login hooks
 - `hooks/create/` - Lifecycle hooks: pre-copy.sh, copy.sh (required), post-copy.sh, build.sh (required)
 - `hooks/sync/` - Configuration sync hooks (sync.sh)
 
 ### Module System
-Modules extend sandbox functionality via `hooks/init.sh`. Module structure:
+Modules extend sandbox functionality via hooks executed at different lifecycle points. Module structure:
 ```
 <module-id>/
-├── hooks/init.sh    # Module initialization hook
-├── artifacts/       # Files/resources for hooks
+├── hooks/
+│   ├── init/
+│   │   └── init.sh        # Container initialization hook (runs once at container start)
+│   └── shell-login/
+│       └── login.sh       # Shell login hook (runs on each shell session)
+├── artifacts/             # Files/resources for hooks
 └── README.md
 ```
 
@@ -137,15 +145,18 @@ Docker Compose includes these via the `include:` directive.
 - File descriptor limit: 65536
 - Ephemeral /tmp: 1GB tmpfs
 - IPC: private namespace
-- Installed: git, curl, jq, vim, gcloud SDK, dotnet SDK, gh CLI, Node.js/NVM
+- Installed: git, curl, jq, vim, openssh-client, fzf, gcloud SDK, dotnet SDK, gh CLI, Node.js/NVM
+- Symlinks: `~/.ssh` → `/sandbox/user-secrets/.ssh`, `~/.nuget` → `/sandbox/user-secrets/.nuget`
 
 ### Container Startup Flow
 1. Docker entrypoint starts
 2. `/sandbox/init/init.sh` runs:
-   - `modules-init.sh` - Initialize modules
+   - `ssh-init.sh` - Setup SSH (symlink ~/.ssh to /sandbox/user-secrets/.ssh)
+   - `nuget-init.sh` - Setup NuGet (symlink ~/.nuget to /sandbox/user-secrets/.nuget)
    - `nvm-init.sh` - Setup Node.js/NVM
    - `claude-init.sh` - Setup Claude AI
-3. Container runs `sleep infinity` to remain runnig
+   - `modules-init.sh` - Initialize modules (executes each module's `hooks/init/init.sh`)
+3. Container runs `sleep infinity` to remain running
 
 ## Code Conventions
 
@@ -166,14 +177,12 @@ Docker Compose includes these via the `include:` directive.
 ```bash
 1. sb-user init                        # Create user config
 2. sb-templates init                   # Generate config for sandbox templates
-2. export SB_USER_ENV_ROOT="<path>"    # Set in shell profile
-3  Add SB_USER_ENV_ROOT="<path>" to PATH env var
-3. Add bin/ to PATH
+3. export SB_USER_ENV_ROOT="<path>"    # Set in shell profile
+4. Add bin/ to PATH
 5. cd <project-dir>
 6. sb-project init -i <project-id>     # Create project structure
 7. sb new                              # Create default sandbox
 8. sb up                               # Start sandbox
 9. sb logs                             # Verify completion of sandbox initialization
-9. sb shell                            # Start a shell session 
-10. 
+10. sb shell                           # Start a shell session
 ```
