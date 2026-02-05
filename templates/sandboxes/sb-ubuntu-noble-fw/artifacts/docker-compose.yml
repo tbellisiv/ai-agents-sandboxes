@@ -11,17 +11,17 @@ services:
         command: /sandbox/hooks/init/init.sh
         working_dir: /workspace/${SB_PROJECT_WORKSPACE_MAIN_ROOT_DIRNAME}
         hostname: ${COMPOSE_PROJECT_NAME}
-        # cap_drop:
-        #     - ALL
-        # cap_add:
-        #     # firewall:
-        #     - NET_ADMIN
-        #     - NET_RAW
-        #     # sudo/root:
-        #     - SETUID
-        #     - SETGID
-        #     - DAC_OVERRIDE
-        #     - CHOWN
+        cap_drop:
+            - ALL
+        cap_add:
+            # firewall:
+            - NET_ADMIN
+            - NET_RAW
+            # sudo/root:
+            - SETUID
+            - SETGID
+            - DAC_OVERRIDE
+            - CHOWN
         pids_limit: 500 # prevent fork bombs
         mem_limit: 8G
         ipc: private # isolate IPC namespace

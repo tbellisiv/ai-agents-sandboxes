@@ -21,7 +21,12 @@ RUN DEBIAN_FRONTEND=noninteractive apt-get update && apt-get upgrade -y && apt-g
     git \
     curl \
     iptables \
+    netcat-openbsd \
+    iputils-ping \
+    dnsutils \    
+    net-tools \
     jq \
+    yq \
     less \
     nano \
     nftables \
@@ -80,7 +85,7 @@ RUN chmod u-s /usr/bin/mount /usr/bin/umount /usr/bin/chsh \
 RUN mkdir -p /workspace
 RUN . /sandbox/user/sb-login.env && chown $SB_LOGIN_USER_NAME:$SB_LOGIN_GROUP_NAME /workspace
 
-########## SDK / Dev Tools Install
+########## SDK / Dev Tools and Dependencies Install
 
 # gcloud SDK
 COPY gcloud-sdk-install.sh /tmp
@@ -93,6 +98,11 @@ RUN /tmp/dotnet-sdk-install.sh
 # dotnet SDK
 COPY gh-cli-install.sh /tmp
 RUN /tmp/gh-cli-install.sh
+
+#python build deps
+RUN apt install -y make build-essential libssl-dev zlib1g-dev libbz2-dev libreadline-dev libsqlite3-dev curl git libncursesw5-dev xz-utils tk-dev libxml2-dev libxmlsec1-dev libffi-dev liblzma-dev
+
+#########
 
 #entrypoint
 COPY entrypoint.sh /entrypoint.sh

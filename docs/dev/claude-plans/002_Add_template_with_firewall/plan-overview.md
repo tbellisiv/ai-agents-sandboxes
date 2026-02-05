@@ -45,3 +45,23 @@ s
 
   - If the '-f' option is specified appennd the '-f' option to the 'docker compose logs' command.
 
+  ## Task 5: Implement firewall capability in sb-ubuntu-noble-fw Docker image and associated docker-compose.yml.
+
+  - Scan every line in every file /home/tellis/dev/ai-tools/agent-sandboxes/devcontainers/claude/code/anthropic-github/devcontainer. This project is a reference implementation of a Claude Code devcontainer by Anthropic. 
+
+  - Develop a detailed plan to implement the same firewall mechanisn in the sb-ubuntu-noble-fw template.
+
+## Task 6: Create tests to validate the firewall functionality in the sb-ubuntu-noble-fw Docker image.
+
+- Generate bash scripts that execute integration test to valdidate the firewall functionality in the sb-ubuntu-noble-fw Docker image. Create the test scripts in the tests/images/sb-ubuntu-noble-fw directory.
+
+- Test scripts should:
+
+  - Use the 'Bats' test framework for Bash script. Refer to https://github.com/bats-core/bats-core for Bats code/examples and https://bats-core.readthedocs.io/en/stable/ for Bats user documentation.
+
+  - Use the templates/sandboxes/sb-ubuntu-noble-fw/image/run.sh script to start a shell session in the sb-ubuntu-noble-fw image.
+
+  - Use the curl, ping and netcat commands to validate firewall rules.
+
+- Create a test plan that documents the test cases and the test scripts.
+

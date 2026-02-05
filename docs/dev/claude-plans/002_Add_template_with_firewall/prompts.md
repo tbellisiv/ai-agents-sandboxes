@@ -23,3 +23,15 @@ Prompts:
 Prompts:
 
 > Read the high-level plan in docs/dev/claude-plans/002_Add_template_with_firewall/plan-overview.md. Generate a detailed plan for task #4 and write the plan to docs/dev/claude-plans/002_Add_template_with_firewall/plan-claude-task-4.md.
+
+# Implement task 5 in plan-overview.md
+
+Prompts:
+
+> Read the high-level plan in docs/dev/claude-plans/002_Add_template_with_firewall/plan-overview.md. Generate a detailed plan for task #5 and write the plan to docs/dev/claude-plans/002_Add_template_with_firewall/plan-claude-task-5.md.
+
+# Implement task 6 in plan-overview.md
+
+Prompts:
+
+> Read the high-level plan in docs/dev/claude-plans/002_Add_template_with_firewall/plan-overview.md. Generate a detailed plan for task #6 and write the plan to docs/dev/claude-plans/002_Add_template_with_firewall/plan-claude-task-6.md.
