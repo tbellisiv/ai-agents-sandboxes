@@ -87,6 +87,10 @@ RUN . /sandbox/user/sb-login.env && chown $SB_LOGIN_USER_NAME:$SB_LOGIN_GROUP_NA
 
 ########## SDK / Dev Tools and Dependencies Install
 
+#yq
+RUN wget https://github.com/mikefarah/yq/releases/download/v4.2.0/yq_linux_amd64 -O /usr/local/bin/yq \
+    && chmod +x /usr/local/bin/yq
+
 # gcloud SDK
 COPY gcloud-sdk-install.sh /tmp
 RUN /tmp/gcloud-sdk-install.sh

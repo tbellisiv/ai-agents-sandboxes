@@ -39,6 +39,7 @@ parser_definition() {
 	cmd pause     -- "Pause a running sandbox                                    "
 	cmd unpause   -- "Unpauses a paused sandbox                                  "
 	cmd logs      -- "Show sandbox container logs                                "
+	cmd env       -- "Prints the Docker Compose .env file for a sandbox           "
 	cmd ps        -- "Displays sandbox status                                    "
 	cmd ls        -- "Displays sandbox status                                    "
   cmd shell     -- "Starts a terminal shell in a sandbox                       "
@@ -164,6 +165,14 @@ parser_definition_logs() {
 	msg -- '' 'Displays sandbox container logs'
 	msg -- 'Options:'
 	flag    follow        -f    --follow                                                                                          -- "Follow log output (tail -f style)"
+	param   project_path  -p    --project-path                                                                                    -- "The path to the project directory (the \".sb\" directory). If not specified, $SCRIPT_NAME will attempt to find the path based on the current directory"
+	disp    :usage        -h    --help
+}
+
+parser_definition_env() {
+	setup   REST error:error_init help:usage abbr:true -- "Usage: $SCRIPT_NAME env [<sandbox>] [<options>]"
+	msg -- '' 'Prints the Docker Compose .env file for a sandbox'
+	msg -- 'Options:'
 	param   project_path  -p    --project-path                                                                                    -- "The path to the project directory (the \".sb\" directory). If not specified, $SCRIPT_NAME will attempt to find the path based on the current directory"
 	disp    :usage        -h    --help
 }
@@ -698,6 +707,30 @@ sandbox_logs() {
 	echo "$SCRIPT_NAME: Running: docker compose -f $__compose_file logs $__compose_service --no-log-prefix -t --no-color $follow_opt"
 	echo ""
 	docker compose -f $__compose_file logs $__compose_service --no-log-prefix -t --no-color $follow_opt
+
+}
+
+sandbox_env() {
+
+  #get the sandbox config
+  cmd_conf=$(get_sandbox_cmd_conf)
+  if [ $? -ne 0 ]; then
+    if [ -n "$cmd_conf" ]; then
+      echo "$cmd_conf"
+    fi
+    exit 1
+  fi
+  eval "$cmd_conf"
+
+  if [ ! -f "$__compose_env_path" ]; then
+    echo "$SCRIPT_NAME: Error: Docker Compose .env file '$__compose_env_path' does not exist for sandbox '$__sandbox_id'"
+    exit 1
+  fi
+
+  echo "$SCRIPT_NAME: Sandbox: $__sandbox_root"
+  echo "$SCRIPT_NAME: Docker Compose .env file: $__compose_env_path"
+  echo ""
+  cat $__compose_env_path
 
 }
 
@@ -1618,7 +1651,13 @@ if [ $# -gt 0 ]; then
         eval "$cmd_parser"
         sandbox=$1
         sandbox_logs $sandbox
-				;;    				 
+				;;
+		env)
+				cmd_parser="$(getoptions parser_definition_env)"
+        eval "$cmd_parser"
+        sandbox=$1
+        sandbox_env $sandbox
+				;;
 		ls)
 				cmd_parser="$(getoptions parser_definition_ls)"
         eval "$cmd_parser"
