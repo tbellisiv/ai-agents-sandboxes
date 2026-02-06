@@ -48,7 +48,7 @@ git config --global core.autocrlf input  #ensure LF's stay in repo,
 
 export PATH=$HOME/.local/bin:$PATH
 
-# execute shell login hooks provided by modules
+# execute shell login hooks provided by modules; each hook outputs a list of commands to execute
 if [ -f /sandbox/hooks/shell-login/shell-login.sh ]; then
-  /sandbox/hooks/shell-login/shell-login.sh
+  source /sandbox/hooks/shell-login/shell-login.sh
 fi
