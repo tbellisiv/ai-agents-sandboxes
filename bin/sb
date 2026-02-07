@@ -246,6 +246,71 @@ dir_search_tree_up_by_filename() {
 	fi
 }
 
+check_sync_dependencies() {
+  local missing=0
+  if ! command -v yq &> /dev/null; then
+    echo "$SCRIPT_NAME: Error- 'yq' is required for file sync but not found. Install yq: https://github.com/mikefarah/yq"
+    missing=1
+  fi
+  if ! command -v rsync &> /dev/null; then
+    echo "$SCRIPT_NAME: Error- 'rsync' is required for file sync but not found"
+    missing=1
+  fi
+  return $missing
+}
+
+resolve_sandbox_env_tokens() {
+  local input_string="$1"
+  local env_file="$2"
+
+  if [ -z "$input_string" ]; then
+    echo -n ""
+    return 0
+  fi
+
+  if [ ! -f "$env_file" ]; then
+    echo "$SCRIPT_NAME: Error- env file '$env_file' does not exist" >&2
+    return 1
+  fi
+
+  local result="$input_string"
+
+  # Extract all __ENV__ tokens from the input string
+  local tokens
+  tokens=$(echo "$input_string" | grep -oE '__ENV__[A-Za-z_][A-Za-z0-9_]*')
+
+  if [ -z "$tokens" ]; then
+    echo -n "$result"
+    return 0
+  fi
+
+  local token
+  for token in $tokens; do
+    # Strip __ENV__ prefix to get variable name
+    local var_name="${token#__ENV__}"
+
+    # Look up VARNAME=value in the .env file
+    local line
+    line=$(grep -E "^${var_name}=" "$env_file" | head -n 1)
+
+    if [ -z "$line" ]; then
+      echo "$SCRIPT_NAME: Error- variable '$var_name' (referenced as '$token') not found in '$env_file'" >&2
+      return 1
+    fi
+
+    # Extract value (strip VAR_NAME= prefix, then strip surrounding double quotes if present)
+    local value="${line#*=}"
+    value="${value#\"}"
+    value="${value%\"}"
+
+    # Replace the token with the value
+    result="${result//$token/$value}"
+  done
+
+  echo -n "$result"
+  return 0
+}
+
 get_default_sandbox_id() {
 
   default_sandbox=
@@ -770,6 +835,176 @@ sandbox_ls() {
 
 }
 
+sync_files() {
+  local sync_file="$1"
+	local sync_file_basename=$(basename $sync_file)
+
+  if [ ! -f "$sync_file" ]; then
+    echo "$SCRIPT_NAME: Error- sync file '$sync_file' does not exist"
+    return 1
+  fi
+
+  # Check dependencies
+  check_sync_dependencies
+  if [ $? -ne 0 ]; then
+    return 1
+  fi
+
+  # Get number of sync specs to process
+  local spec_count
+  spec_count=$(yq '.sync.spec | length' "$sync_file")
+  if [ $? -ne 0 ]; then
+    echo "$SCRIPT_NAME: Error- failed to parse sync file '$sync_file'"
+    return 1
+  fi
+
+  if [ "$spec_count" -eq 0 ] || [ "$spec_count" = "null" ]; then
+    echo "$SCRIPT_NAME: No sync specs found in '$sync_file'"
+    return 0
+  fi
+
+  # Ensure logs directory exists
+  mkdir -p "$__sandbox_root/logs"
+
+  local timestamp
+  timestamp=$(date +%Y%m%d-%H%M%S)
+  local had_errors=0
+
+  local i
+  for (( i=0; i<spec_count; i++ )); do
+
+    echo "$SCRIPT_NAME: Processing sync spec [$i] from '$sync_file'"
+
+    # Parse sandbox path
+    local raw_sandbox_path
+    raw_sandbox_path=$(yq ".sync.spec[$i].sandbox.path" "$sync_file")
+    if [ -z "$raw_sandbox_path" ] || [ "$raw_sandbox_path" = "null" ]; then
+      echo "$SCRIPT_NAME: Error- sync spec [$i]: sandbox.path is not defined"
+      had_errors=1
+      continue
+    fi
+
+    # Resolve __ENV__ tokens in sandbox path
+    local sandbox_path
+    sandbox_path=$(resolve_sandbox_env_tokens "$raw_sandbox_path" "$__compose_env_path")
+    if [ $? -ne 0 ]; then
+      echo "$SCRIPT_NAME: Error- sync spec [$i]: failed to resolve tokens in sandbox path '$raw_sandbox_path'"
+      had_errors=1
+      continue
+    fi
+
+    # Validate host path is defined
+    local host_path_raw=$(yq ".sync.spec[$i].host.path" "$sync_file")
+    if [ -z "$host_path_raw" ] || [ "$host_path_raw" = "null" ]; then
+      echo "$SCRIPT_NAME: Error- sync spec [$i]: host.path is not defined"
+      had_errors=1
+      continue
+    fi
+
+		# resolve any references to environment variables (bash string interpolation)
+		host_path=$(eval "echo -n \"$host_path_raw\"")
+
+    # Parse include patterns (optional)
+    local include_count
+    include_count=$(yq ".sync.spec[$i].sandbox.include | length" "$sync_file" 2>/dev/null)
+    local includes=()
+    if [ -n "$include_count" ] && [ "$include_count" != "null" ] && [ "$include_count" -gt 0 ] 2>/dev/null; then
+      local k
+      for (( k=0; k<include_count; k++ )); do
+        local inc_pattern
+        inc_pattern=$(yq ".sync.spec[$i].sandbox.include[$k]" "$sync_file")
+        includes+=("$inc_pattern")
+      done
+    fi
+
+    # Parse exclude patterns (optional)
+    local exclude_count
+    exclude_count=$(yq ".sync.spec[$i].sandbox.exclude | length" "$sync_file" 2>/dev/null)
+    local excludes=()
+    if [ -n "$exclude_count" ] && [ "$exclude_count" != "null" ] && [ "$exclude_count" -gt 0 ] 2>/dev/null; then
+      local k
+      for (( k=0; k<exclude_count; k++ )); do
+        local exc_pattern
+        exc_pattern=$(yq ".sync.spec[$i].sandbox.exclude[$k]" "$sync_file")
+        excludes+=("$exc_pattern")
+      done
+    fi
+
+    # Create temp directory
+    local temp_dir
+    temp_dir=$(mktemp -d "/tmp/sb-sync-${__sandbox_id}-XXXXXX")
+
+    # Build rsync arguments
+    local rsync_args=("-rLptgoD")
+
+    # Add include patterns first
+    local inc
+    for inc in "${includes[@]}"; do
+      rsync_args+=("--include=$inc")
+    done
+
+    # Add exclude patterns
+    local exc
+    for exc in "${excludes[@]}"; do
+      rsync_args+=("--exclude=$exc")
+    done
+
+    # # If includes were specified, add catch-all exclude
+    # if [ ${#includes[@]} -gt 0 ]; then
+    #   rsync_args+=("--exclude=*")
+    # fi
+
+    # Add source paths and destination
+    rsync_args+=("$host_path" "$temp_dir/")
+
+    # Execute rsync
+    local rsync_log="$__sandbox_root/logs/sync-rsync-${timestamp}-spec${i}.log"
+    echo "$SCRIPT_NAME: [$sync_file_basename] Staging files for sync- running rsync for spec [$i]"
+    rsync "${rsync_args[@]}" > "$rsync_log" 2>&1
+    local rsync_rc=$?
+    if [ $rsync_rc -ne 0 ]; then
+      echo "$SCRIPT_NAME: Error- sync spec [$i]: rsync failed (exit code $rsync_rc). Log: $rsync_log"
+      echo "$SCRIPT_NAME: Temp directory preserved at: $temp_dir"
+      had_errors=1
+      continue
+    fi
+
+    # Check if temp dir has files
+    local file_count
+    file_count=$(find "$temp_dir" -type f | wc -l)
+    if [ "$file_count" -eq 0 ]; then
+      echo "$SCRIPT_NAME: Info- sync spec [$i]: no files matched, skipping docker compose cp"
+      rm -rf "$temp_dir"
+      continue
+    fi
+
+    # Execute docker compose cp
+    local compose_cp_log="$__sandbox_root/logs/sync-compose-cp-${timestamp}-spec${i}.log"
+    echo "$SCRIPT_NAME: [$sync_file_basename] Copying $file_count staged file(s) to sandbox path '${sandbox_path}'"
+    docker compose -f "$__compose_file" cp "$temp_dir/." "${__compose_service}:${sandbox_path}" > "$compose_cp_log" 2>&1
+    local cp_rc=$?
+    if [ $cp_rc -ne 0 ]; then
+      echo "$SCRIPT_NAME: Error- sync spec [$i]: docker compose cp failed (exit code $cp_rc)"
+      echo "$SCRIPT_NAME: Rsync log: $rsync_log"
+      echo "$SCRIPT_NAME: Compose cp log: $compose_cp_log"
+      echo "$SCRIPT_NAME: Temp directory preserved at: $temp_dir"
+      had_errors=1
+      continue
+    fi
+
+    # Success - clean up temp dir
+    rm -rf "$temp_dir"
+    echo "$SCRIPT_NAME: [$sync_file_basename] Sync for spec [$i] completed."
+
+  done
+
+  if [ $had_errors -ne 0 ]; then
+    return 1
+  fi
+
+  return 0
+}
+
 sandbox_sync() {
 
   #get the sandbox config
@@ -817,6 +1052,39 @@ sandbox_sync() {
 	if [ $? -ne 0 ]; then
 		echo "$SCRIPT_NAME: Sandbox rebuild failed"
 		exit 1
+	fi
+
+	# Sync files from YAML specs (sandbox, project, user levels)
+	# File sync runs after container creation. docker compose cp works on created (stopped) containers.
+
+	# Sync sandbox files (if sb-sandbox-sync.yml exists)
+	if [ -f "$__sandbox_root/sb-sandbox-sync.yml" ]; then
+		echo ""
+		echo "$SCRIPT_NAME: [Sandbox] Syncing files specified in '$__sandbox_root/sb-sandbox-sync.yml'"
+		sync_files "$__sandbox_root/sb-sandbox-sync.yml"
+		if [ $? -ne 0 ]; then
+			echo "$SCRIPT_NAME: Warning- sandbox file sync encountered errors"
+		fi
+	fi
+
+	# Sync project files (if sb-project-sync.yml exists)
+	if [ -f "$__project_root/sb-project-sync.yml" ]; then
+		echo ""
+		echo "$SCRIPT_NAME: [Project] Syncing files specified in '$__project_root/sb-project-sync.yml'"
+		sync_files "$__project_root/sb-project-sync.yml"
+		if [ $? -ne 0 ]; then
+			echo "$SCRIPT_NAME: Warning- project file sync encountered errors"
+		fi
+	fi
+
+	# Sync user files (if user-sync.yml exists)
+	if [ -n "$__user_env_root" ] && [ -f "$__user_env_root/user-sync.yml" ]; then
+		echo ""
+		echo "$SCRIPT_NAME: [User] Syncing files specified in '$__user_env_root/user-sync.yml'"
+		sync_files "$__user_env_root/user-sync.yml"
+		if [ $? -ne 0 ]; then
+			echo "$SCRIPT_NAME: Warning- user file sync encountered errors"
+		fi
 	fi
 
 	echo ""
