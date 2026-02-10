@@ -57,10 +57,21 @@ error_init() {
 
 init_project() {
 
+  workspace_root=$(readlink -f ".")
+  id_default=$(basename $workspace_root)
+
   if [ -z "$id" ]; then
-    usage
-    exit 1
+
+    echo ""
+    read -r -p "$SCRIPT_NAME: Confirm (<Enter>) or change ID project ID [$id_default]: " id
+
+    if [ -z "$id" ]; then
+      id="$id_default"
+    fi
+
   fi
+
+  echo ""
 
   path_abs=$(readlink -f $path)
 

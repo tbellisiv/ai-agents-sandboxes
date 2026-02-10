@@ -25,7 +25,7 @@ if [ ! -d "${template_artifacts_path}" ]; then
   exit 1
 fi
 
-cp -r -f $template_artifacts_path/* $new_sandbox_path
+cp -r -f $template_artifacts_path/. $new_sandbox_path
 if [ $? -ne 0 ]; then
   echo "${SCRIPT_MSG_PREFIX}: Error: Template artifacts copy failed"
   exit 1

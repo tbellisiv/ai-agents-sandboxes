@@ -7,14 +7,14 @@
       #     path: 
       #       - $HOME/.ssh/my_ssh_key
       #   sandbox:
-      #     path: __ENV__SB_LOGIN_USER_HOME/.ssh
+      #     path: __ENV__SB_SANDBOX_USER_SECRETS_ROOT/.ssh
 
       # Example: Sync a single file in host user's home to the sandbox user's .ssh/ sub-directory under the sandbox user's home directory.
       # - host: 
       #     path: 
       #       - $HOME/.ssh/my_ssh_key
       #   sandbox:
-      #     path: __ENV__SB_LOGIN_USER_HOME/.ssh
+      #     path: __ENV__SB_SANDBOX_USER_ROOT/.ssh
 
 
       # Example: Sync a single file to the sandbox user's home directory and rename the file. __ENV__SB_LOGIN_USER_HOME is a token that is replace by looking up the 
@@ -22,14 +22,14 @@
       #     path: 
       #       - $HOME/my-file.txt
       #   sandbox:
-      #     path: __ENV__SB_LOGIN_USER_HOME/my-file-renamed.txt
+      #     path: __ENV__SB_SANDBOX_USER_ROOT/my-file-renamed.txt
 
       # Example: Sync a directory on the host to a directory in the sandbox- filtering the files based on a rysnc include pattern
       # - host: 
       #     path: 
       #       - $HOME/.config
       #   sandbox:
-      #     path: __ENV__SB_LOGIN_USER_HOME
+      #     path: __ENV__SB_SANDBOX_USER_ROOT
       #     include: 
       #       - '*.env'
       #       - 'tmux/***'
@@ -41,7 +41,7 @@
       #     path: 
       #       - $HOME/.config
       #   sandbox:
-      #     path: __ENV__SB_LOGIN_USER_HOME
+      #     path: __ENV__SB_SANDBOX_USER_ROOT
       #     exclude:
       #       - '**/*secrets*'
       #       - 'tmux/tmux.conf'
@@ -51,7 +51,7 @@
       #     path: 
       #       - $HOME/.config
       #   sandbox:
-      #     path: __ENV__SB_LOGIN_USER_HOME
+      #     path: __ENV__SB_SANDBOX_USER_ROOT
       #     include: 
       #       - '*.env'
       #       - 'tmux/***'

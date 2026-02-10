@@ -886,7 +886,7 @@ sandbox_ls() {
 
 }
 
-sync_files() {
+sync_files_spec() {
   local sync_file="$1"
 	local sync_file_basename=$(basename $sync_file)
 
@@ -942,7 +942,7 @@ sync_files() {
     local sandbox_path
     sandbox_path=$(resolve_sandbox_env_tokens "$raw_sandbox_path" "$__compose_env_path")
     if [ $? -ne 0 ]; then
-      echo "$SCRIPT_NAME: Error- sync spec [$i]: failed to resolve tokens in sandbox path '$raw_sandbox_path'"
+      echo "$SCRIPT_NAME: Error- sync spec [$i]: failed to resolve token(s) in sandbox path '$raw_sandbox_path'"
       had_errors=1
       continue
     fi
@@ -1035,7 +1035,7 @@ sync_files() {
 
     # Execute docker compose cp
     local compose_cp_log="$__sandbox_root/logs/sync-${timestamp}-${sync_spec_source}-compose-cp-spec-${i}.log"
-    echo "$SCRIPT_NAME: [$sync_file_basename] Copying $file_count staged file(s) to sandbox path '${sandbox_path}'"
+    echo "$SCRIPT_NAME: [$sync_file_basename] Copying $file_count staged file(s) sandbox container path '${sandbox_path}'"
 		echo -e "docker compose -f $__compose_file cp $temp_dir/. ${__compose_service}:${sandbox_path}\n" > $rsync_log
     docker compose -f "$__compose_file" cp "$temp_dir/." "${__compose_service}:${sandbox_path}" >> "$compose_cp_log" 2>&1
     local cp_rc=$?
@@ -1061,7 +1061,54 @@ sync_files() {
   return 0
 }
 
+sync_files() {
 
+  #get the sandbox config
+  cmd_conf=$(get_sandbox_cmd_conf)
+  if [ $? -ne 0 ]; then
+    if [ -n "$cmd_conf" ]; then
+      echo "$cmd_conf"
+    fi
+    return 1
+  fi  
+  eval "$cmd_conf"
+
+	# Sync files from YAML specs (sandbox, project, user)
+
+	# Sync sandbox files (if sb-sandbox-sync.yml exists)
+	if [ -f "$__sandbox_root/sb-sandbox-sync.yml" ]; then
+		echo ""
+		echo "$SCRIPT_NAME: [Sandbox] Syncing files specified in '$__sandbox_root/sb-sandbox-sync.yml'"
+		sync_files_spec "$__sandbox_root/sb-sandbox-sync.yml"
+		if [ $? -ne 0 ]; then
+			echo "$SCRIPT_NAME: Error- sandbox file sync encountered errors"
+			return 1
+		fi
+	fi
+
+	# Sync project files (if sb-project-sync.yml exists)
+	if [ -f "$__project_root/sb-project-sync.yml" ]; then
+		echo ""
+		echo "$SCRIPT_NAME: [Project] Syncing files specified in '$__project_root/sb-project-sync.yml'"
+		sync_files_spec "$__project_root/sb-project-sync.yml"
+		if [ $? -ne 0 ]; then
+			echo "$SCRIPT_NAME: Error- project file sync encountered errors"
+			return 1
+		fi
+	fi
+
+	# Sync user files (if user-sync.yml exists)
+	if [ -n "$__user_env_root" ] && [ -f "$__user_env_root/user-sync.yml" ]; then
+		echo ""
+		echo "$SCRIPT_NAME: Syncing files specified in '$__user_env_root/user-sync.yml'"
+		sync_files_spec "$__user_env_root/user-sync.yml"
+		if [ $? -ne 0 ]; then
+			echo "$SCRIPT_NAME: Error- user file sync encountered errors"
+			return 1
+		fi
+	fi
+
+}
 
 sandbox_sync() {
 
@@ -1077,21 +1124,18 @@ sandbox_sync() {
 
 	echo ""
 
+	echo "$SCRIPT_NAME: Syncing Docker Compose .env"
 	sync_env
   if [ $? -ne 0 ]; then
     exit 1
   fi  
 
+	echo "$SCRIPT_NAME: Syncing Docker Compose image"
 	sync_image
 	if [ $? -ne 0 ]; then
     exit 1
   fi  
-
-	sync_modules
-  if [ $? -ne 0 ]; then
-    exit 1
-  fi  
-
+	
 	echo ""
 	echo "$SCRIPT_NAME: Rebuilding sandbox"
 	echo ""
@@ -1112,39 +1156,17 @@ sandbox_sync() {
 		exit 1
 	fi
 
-	# Sync files from YAML specs (sandbox, project, user levels)
-	# File sync runs after container creation. docker compose cp works on created (stopped) containers.
+	echo "$SCRIPT_NAME: Syncing external files"
+	sync_files
+	if [ $? -ne 0 ]; then
+		exit 1
+	fi
 
-	# Sync sandbox files (if sb-sandbox-sync.yml exists)
-	# if [ -f "$__sandbox_root/sb-sandbox-sync.yml" ]; then
-	# 	echo ""
-	# 	echo "$SCRIPT_NAME: [Sandbox] Syncing files specified in '$__sandbox_root/sb-sandbox-sync.yml'"
-	# 	sync_files "$__sandbox_root/sb-sandbox-sync.yml"
-	# 	if [ $? -ne 0 ]; then
-	# 		echo "$SCRIPT_NAME: Warning- sandbox file sync encountered errors"
-	# 	fi
-	# fi
-
-	# # Sync project files (if sb-project-sync.yml exists)
-	# if [ -f "$__project_root/sb-project-sync.yml" ]; then
-	# 	echo ""
-	# 	echo "$SCRIPT_NAME: [Project] Syncing files specified in '$__project_root/sb-project-sync.yml'"
-	# 	sync_files "$__project_root/sb-project-sync.yml"
-	# 	if [ $? -ne 0 ]; then
-	# 		echo "$SCRIPT_NAME: Warning- project file sync encountered errors"
-	# 	fi
-	# fi
-
-	# # Sync user files (if user-sync.yml exists)
-	# if [ -n "$__user_env_root" ] && [ -f "$__user_env_root/user-sync.yml" ]; then
-	# 	echo ""
-	# 	echo "$SCRIPT_NAME: Syncing files specified in '$__user_env_root/user-sync.yml'"
-	# 	sync_files "$__user_env_root/user-sync.yml"
-	# 	if [ $? -ne 0 ]; then
-	# 		echo ""
-	# 		echo "$SCRIPT_NAME: Warning- user file sync encountered errors"
-	# 	fi
-	# fi
+	echo "$SCRIPT_NAME: Syncing Modules"
+	sync_modules
+  if [ $? -ne 0 ]; then
+    exit 1
+  fi  
 
 	echo ""
 	echo "$SCRIPT_NAME: Sandbox sync complete"
@@ -1581,9 +1603,9 @@ sandbox_shell() {
 
   if [ "$status" != "running" ]; then
     echo "$SCRIPT_NAME: Starting sandbox '$__sandbox_id'"
-    echo "$SCRIPT_NAME: Running: docker compose -f $__compose_file up -d"
+    echo "$SCRIPT_NAME: Running: docker compose -f $__compose_file up --remove-orphans -d"
     echo ""
-    docker compose -f $__compose_file up -d
+    docker compose -f $__compose_file up --remove-orphans -d
     if [ $? -ne 0 ]; then
       echo "$SCRIPT_NAME: Error- failed to start sandbox"
       exit 1
@@ -1908,6 +1930,12 @@ sandbox_new() {
 		echo "$SCRIPT_NAME: Error: Execution of '$template_hook_create_post_container_create_script_path' failed"
 		exit 1
 	fi
+
+	echo "$SCRIPT_NAME: Syncing external files"
+	sync_files	
+	if [ $? -ne 0 ]; then
+    exit 1
+  fi  
 
 	echo "$SCRIPT_NAME: Installing sandbox modules"
 	sync_modules
