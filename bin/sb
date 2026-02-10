@@ -1061,6 +1061,8 @@ sync_files() {
   return 0
 }
 
+
+
 sandbox_sync() {
 
   #get the sandbox config
@@ -1094,10 +1096,10 @@ sandbox_sync() {
 	echo "$SCRIPT_NAME: Rebuilding sandbox"
 	echo ""
 	
-	echo "$SCRIPT_NAME: Running: docker compose -f $__compose_file down"
+	echo "$SCRIPT_NAME: Running: docker compose -f $__compose_file down --remove-orphans -v -t 300"
 	docker compose -f $__compose_file down
 	if [ $? -ne 0 ]; then
-		echo "$SCRIPT_NAME: Sandbox rebuild failed"
+		echo "$SCRIPT_NAME: Sandbox rebuild failed- unable to stop running container"
 		exit 1
 	fi
 
@@ -1106,7 +1108,7 @@ sandbox_sync() {
 	echo "$SCRIPT_NAME: Running: docker compose -f $__compose_file create -y --remove-orphans"
 	docker compose -f $__compose_file create -y --remove-orphans 
 	if [ $? -ne 0 ]; then
-		echo "$SCRIPT_NAME: Sandbox rebuild failed"
+		echo "$SCRIPT_NAME: Sandbox rebuild failed- unable to recreate container"
 		exit 1
 	fi
 
@@ -1114,35 +1116,35 @@ sandbox_sync() {
 	# File sync runs after container creation. docker compose cp works on created (stopped) containers.
 
 	# Sync sandbox files (if sb-sandbox-sync.yml exists)
-	if [ -f "$__sandbox_root/sb-sandbox-sync.yml" ]; then
-		echo ""
-		echo "$SCRIPT_NAME: [Sandbox] Syncing files specified in '$__sandbox_root/sb-sandbox-sync.yml'"
-		sync_files "$__sandbox_root/sb-sandbox-sync.yml"
-		if [ $? -ne 0 ]; then
-			echo "$SCRIPT_NAME: Warning- sandbox file sync encountered errors"
-		fi
-	fi
+	# if [ -f "$__sandbox_root/sb-sandbox-sync.yml" ]; then
+	# 	echo ""
+	# 	echo "$SCRIPT_NAME: [Sandbox] Syncing files specified in '$__sandbox_root/sb-sandbox-sync.yml'"
+	# 	sync_files "$__sandbox_root/sb-sandbox-sync.yml"
+	# 	if [ $? -ne 0 ]; then
+	# 		echo "$SCRIPT_NAME: Warning- sandbox file sync encountered errors"
+	# 	fi
+	# fi
 
-	# Sync project files (if sb-project-sync.yml exists)
-	if [ -f "$__project_root/sb-project-sync.yml" ]; then
-		echo ""
-		echo "$SCRIPT_NAME: [Project] Syncing files specified in '$__project_root/sb-project-sync.yml'"
-		sync_files "$__project_root/sb-project-sync.yml"
-		if [ $? -ne 0 ]; then
-			echo "$SCRIPT_NAME: Warning- project file sync encountered errors"
-		fi
-	fi
+	# # Sync project files (if sb-project-sync.yml exists)
+	# if [ -f "$__project_root/sb-project-sync.yml" ]; then
+	# 	echo ""
+	# 	echo "$SCRIPT_NAME: [Project] Syncing files specified in '$__project_root/sb-project-sync.yml'"
+	# 	sync_files "$__project_root/sb-project-sync.yml"
+	# 	if [ $? -ne 0 ]; then
+	# 		echo "$SCRIPT_NAME: Warning- project file sync encountered errors"
+	# 	fi
+	# fi
 
-	# Sync user files (if user-sync.yml exists)
-	if [ -n "$__user_env_root" ] && [ -f "$__user_env_root/user-sync.yml" ]; then
-		echo ""
-		echo "$SCRIPT_NAME: Syncing files specified in '$__user_env_root/user-sync.yml'"
-		sync_files "$__user_env_root/user-sync.yml"
-		if [ $? -ne 0 ]; then
-			echo ""
-			echo "$SCRIPT_NAME: Warning- user file sync encountered errors"
-		fi
-	fi
+	# # Sync user files (if user-sync.yml exists)
+	# if [ -n "$__user_env_root" ] && [ -f "$__user_env_root/user-sync.yml" ]; then
+	# 	echo ""
+	# 	echo "$SCRIPT_NAME: Syncing files specified in '$__user_env_root/user-sync.yml'"
+	# 	sync_files "$__user_env_root/user-sync.yml"
+	# 	if [ $? -ne 0 ]; then
+	# 		echo ""
+	# 		echo "$SCRIPT_NAME: Warning- user file sync encountered errors"
+	# 	fi
+	# fi
 
 	echo ""
 	echo "$SCRIPT_NAME: Sandbox sync complete"
@@ -1395,7 +1397,7 @@ sync_env() {
 	echo ""
 
 	local compose_
-	local compose_env_backup_dir=${__sandbox_root}/backup/dot-env}
+	local compose_env_backup_dir=${__sandbox_root}/backup/dot-env
 
 	mkdir -p $compose_env_backup_dir
 	if [ $? -ne 0 ]; then
