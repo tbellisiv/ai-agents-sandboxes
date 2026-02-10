@@ -22,7 +22,7 @@ fi
 new_sandbox_path=$1
 
 # Execute parent hook first (copies all base artifacts)
-echo "${SCRIPT_MSG_PREFIX}: Copying parent template artifacts"
+echo "${SCRIPT_MSG_PREFIX}: Copying parent template artifacts - host"
 parent_hook="$PARENT_TEMPLATE_DIR/hooks/$TEMPLATE_OPERATION/$SCRIPT_NAME"
 if [ -f "$parent_hook" ]; then
   echo "${SCRIPT_MSG_PREFIX}: Executing parent hook"
@@ -34,14 +34,18 @@ if [ -f "$parent_hook" ]; then
 fi
 
 # Overlay this template's artifacts over the parent template's artifacts
-echo "${SCRIPT_MSG_PREFIX}: Copying template artifacts"
+echo "${SCRIPT_MSG_PREFIX}: Copying template artifacts - host"
 
-template_artifacts_path=$TEMPLATE_DIR/artifacts
+template_artifacts_path=$TEMPLATE_DIR/artifacts-host
 if [ ! -d "${template_artifacts_path}" ]; then
   echo "${SCRIPT_MSG_PREFIX}: Error: Template artifacts directory '$template_artifacts_path' does not exist"
   exit 1
 fi
 
 cp -r -f $template_artifacts_path/* $new_sandbox_path
+if [ $? -ne 0 ]; then
+  echo "${SCRIPT_MSG_PREFIX}: Error: Template artifacts copy failed"
+  exit 1
+fi
 
-echo "${SCRIPT_MSG_PREFIX}: Template artifact copy complete"
+echo "${SCRIPT_MSG_PREFIX}: Template artifact copy complete - host"

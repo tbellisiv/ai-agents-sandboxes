@@ -55,15 +55,15 @@ RUN mkdir -p /sandbox/init
 RUN mkdir -p /sandbox/secrets
 
 #-- Create directory for info on the user account
-RUN mkdir -p /sandbox/user
+RUN mkdir -p /sandbox/build
 
 #get a group with the specified group ID (if exists) or create it (if it doesn't)
 COPY get_or_create_sb_group.sh  /tmp
-RUN /tmp/get_or_create_sb_group.sh ${GROUP_ID} ${SB_USER_GROUP_REQUESTED} > /sandbox/user/sb-login.env
+RUN /tmp/get_or_create_sb_group.sh ${GROUP_ID} ${SB_USER_GROUP_REQUESTED} > /sandbox/build/sb-login.env
 
 #get a user with the specified user ID (if exists) or create it (if it doesn't)
 COPY get_or_create_sb_user.sh  /tmp
-RUN . /sandbox/user/sb-login.env && /tmp/get_or_create_sb_user.sh ${USER_ID} ${SB_LOGIN_USER_NAME_REQUESTED} ${SB_LOGIN_GROUP_NAME} '${USER_HASH}' >> /sandbox/user/sb-login.env
+RUN . /sandbox/build/sb-login.env && /tmp/get_or_create_sb_user.sh ${USER_ID} ${SB_LOGIN_USER_NAME_REQUESTED} ${SB_LOGIN_GROUP_NAME} '${USER_HASH}' >> /sandbox/build/sb-login.env
 
 # set root password
 RUN if [ -n "$SU_HASH" ]; then \
@@ -80,9 +80,14 @@ RUN git config --global --add safe.directory /workspace
 RUN chmod u-s /usr/bin/mount /usr/bin/umount /usr/bin/chsh \
     /usr/bin/chfn /usr/bin/gpasswd /usr/bin/newgrp /usr/bin/passwd
 
+#mount point dirs
+RUN mkdir -p /sandbox/modules /sandbox/hooks /sandbox/user /sandbox/user-secrets
+RUN . /sandbox/build/sb-login.env \
+    && chown -R $SB_LOGIN_USER_NAME:$SB_LOGIN_GROUP_NAME /sandbox
+
 #workspace
 RUN mkdir -p /workspace
-RUN . /sandbox/user/sb-login.env && chown $SB_LOGIN_USER_NAME:$SB_LOGIN_GROUP_NAME /workspace
+RUN . /sandbox/build/sb-login.env && chown $SB_LOGIN_USER_NAME:$SB_LOGIN_GROUP_NAME /workspace
 
 ########## SDK / Dev Tools and Dependencies Install
 
@@ -113,13 +118,13 @@ RUN chmod 755 /entrypoint.sh
 
 #-- .bashrc - user
 COPY dot-bashrc-init /tmp/.bashrc 
-RUN . /sandbox/user/sb-login.env \
+RUN . /sandbox/build/sb-login.env \
     && mv -f /tmp/.bashrc $SB_LOGIN_USER_HOME \
     && chown $SB_LOGIN_USER_NAME:$SB_LOGIN_GROUP_NAME $SB_LOGIN_USER_HOME/.bashrc
 
 
 #-- .bashrc - root
-RUN . /sandbox/user/sb-login.env \
+RUN . /sandbox/build/sb-login.env \
     && cp -f $SB_LOGIN_USER_HOME/.bashrc ~/.bashrc
 
 #apt cleanup

@@ -13,7 +13,7 @@ Currently, there is no easy way for users to see which sandbox templates are ava
 Add a `list` sub-command to the `sb-templates` CLI that:
 1. Scans the `templates/sandboxes/` directory for template directories
 2. Reads each template's `artifacts/sb-sandbox.env` file
-3. Extracts the `SB_TEMPLATE_ID` and `SB_IMAGE` values
+3. Extracts the `SB_SANDBOX_TEMPLATE_ID` and `SB_SANDBOX_IMAGE` values
 4. Displays the information in a formatted table
 
 ## Expected Output
@@ -96,13 +96,13 @@ list_templates() {
 		# Check if sb-sandbox.env exists
 		if [ -f "$env_file" ]; then
 			# Source the env file to get variables
-			SB_TEMPLATE_ID=""
-			SB_IMAGE=""
+			SB_SANDBOX_TEMPLATE_ID=""
+			SB_SANDBOX_IMAGE=""
 			. "$env_file"
 
-			# Use directory name if SB_TEMPLATE_ID not set
-			template_id="${SB_TEMPLATE_ID:-$template_name}"
-			image="${SB_IMAGE:-<not specified>}"
+			# Use directory name if SB_SANDBOX_TEMPLATE_ID not set
+			template_id="${SB_SANDBOX_TEMPLATE_ID:-$template_name}"
+			image="${SB_SANDBOX_IMAGE:-<not specified>}"
 
 			printf "%-25s %s\n" "$template_id" "$image"
 			found_templates=1

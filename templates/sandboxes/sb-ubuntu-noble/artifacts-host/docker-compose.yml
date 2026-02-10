@@ -6,10 +6,10 @@ include:
 services:
     sandbox:
         container_name: "${COMPOSE_PROJECT_NAME}"
-        image: ${SB_IMAGE:?This is likely a misconfiguration issue.}
+        image: ${SB_SANDBOX_IMAGE:?This is likely a misconfiguration issue.}
         user: "${SB_LOGIN_USER_ID:?This is likely a misconfiguration issue.}:${SB_LOGIN_GROUP_ID:?This is likely a misconfiguration issue.}"
         command: /sandbox/hooks/init/init.sh
-        working_dir: /workspace/${SB_PROJECT_WORKSPACE_MAIN_ROOT_DIRNAME}
+        working_dir: ${SB_SANDBOX_WORKSPACE_MAIN_ROOT}
         hostname: ${COMPOSE_PROJECT_NAME}
         # cap_drop:
         #     - ALL
@@ -33,24 +33,26 @@ services:
                 hard: 65536
         environment:
             - TZ=${SB_SANDBOX_TZ}
-            - SB_PROMPT_SANDBOX=${COMPOSE_PROJECT_NAME}
-            - SB_PROJECT_ID=${SB_PROJECT_ID:?This is likely a misconfiguration issue.}
-            - SB_SANDBOX_ID=${SB_SANDBOX_ID:?This is likely a misconfiguration issue.}
-            - LOCAL_WORKSPACE_MAIN_ROOT=/workspace/${SB_PROJECT_WORKSPACE_MAIN_ROOT_DIRNAME}
             - NODE_OPTIONS=--max-old-space-size=4096
+            - SB_PROJECT_ID=${SB_PROJECT_ID:?This is likely a misconfiguration issue.}
+            - SB_SANDBOX_ID=${SB_SANDBOX_ID:?This is likely a misconfiguration issue.}            
+            - SB_SANDBOX_WORKSPACE_MAIN_ROOT=${SB_SANDBOX_WORKSPACE_MAIN_ROOT:?This is likely a misconfiguration issue.}
 
         env_file:
 
-            - path: ${SB_COMPOSE_ROOT}/sb-sandbox.env
+            - path: ${SB_PROJECT_ROOT}/sb-project.env
+              required: true        
+
+            - path: ${SB_SANDBOX_ROOT}/sb-sandbox.env
               required: true
 
-            - path: ${SB_COMPOSE_ROOT}/sb-login.env
+            - path: ${SB_SANDBOX_ROOT}/sb-login.env
               required: true
 
-            - path: ${SB_COMPOSE_ROOT}/user.env
+            - path: ${SB_SANDBOX_ROOT}/user.env
               required: false
               
-            - path: ${SB_COMPOSE_ROOT}/user-secrets.env
+            - path: ${SB_SANDBOX_ROOT}/user-secrets.env
               required: false              
 
             - path: ${SB_USER_ENV_ROOT}/user.env
@@ -61,22 +63,22 @@ services:
 
         volumes:
             # workspace files
-            - workspace_main:/workspace/${SB_PROJECT_WORKSPACE_MAIN_ROOT_DIRNAME}:delegated
+            - workspace_main:${SB_SANDBOX_WORKSPACE_MAIN_ROOT}:delegated
 
             #create "shadow" mount to an empty directory to hide the SB project files
-            - workspace_sb_shadow:/workspace/${SB_PROJECT_WORKSPACE_MAIN_ROOT_DIRNAME}/.sb
+            - workspace_sb_shadow:${SB_SANDBOX_WORKSPACE_MAIN_ROOT}/.sb
 
             #sandbox modules
-            - modules:/sandbox/modules            
+            - modules:${SB_SANDBOX_MODULES_ROOT}
 
             #sandbox hooks
-            - hooks:/sandbox/hooks
+            - hooks:${SB_SANDBOX_HOOKS_ROOT}
 
             #user non-confidential
-            - user:/sandbox/user
+            - user:${SB_SANDBOX_USER_ROOT}
 
             #user confidential
-            - user_secrets:/sandbox/user-secrets
+            - user_secrets:${SB_SANDBOX_USER_SECRETS_ROOT}
 
             # TIME/TZ
             - /etc/localtime:/etc/localtime:ro
@@ -90,41 +92,17 @@ volumes:
             type: none
             device: ${SB_PROJECT_WORKSPACE_MAIN_ROOT}
             o: bind
-
+        
     workspace_sb_shadow:
-        driver: local
-        driver_opts:
-            type: none
-            device: ${SB_COMPOSE_VOLUME_DOT_SB_SHADOW_ROOT}
-            o: bind       
-
+     
     modules:
-        driver: local
-        driver_opts:
-            type: none
-            device: ${SB_COMPOSE_VOLUME_MODULES_ROOT}
-            o: bind                
-
+       
     hooks:
-        driver: local
-        driver_opts:
-            type: none
-            device: ${SB_COMPOSE_VOLUME_HOOKS_ROOT}
-            o: bind
       
     user:
-        driver: local
-        driver_opts:
-            type: none
-            device: ${SB_COMPOSE_VOLUME_USER_ROOT}
-            o: bind       
 
     user_secrets:
-        driver: local
-        driver_opts:
-            type: none
-            device: ${SB_COMPOSE_VOLUME_USER_SECRETS_ROOT}
-            o: bind       
+       
 
 
 

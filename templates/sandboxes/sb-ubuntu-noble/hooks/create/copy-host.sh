@@ -15,30 +15,24 @@ if [ -z "$1" ]; then
   exit 1
 fi
 
-echo "${SCRIPT_MSG_PREFIX}: Copying template artifacts"
+echo "${SCRIPT_MSG_PREFIX}: Copying template artifacts - host"
 
 new_sandbox_path=$1
 
-template_artifacts_path=$TEMPLATE_DIR/artifacts
+template_artifacts_path=$TEMPLATE_DIR/artifacts-host
 if [ ! -d "${template_artifacts_path}" ]; then
   echo "${SCRIPT_MSG_PREFIX}: Error: Template artifacts directory '$template_artifacts_path' does not exist"
+  exit 1
 fi
 
 cp -r -f $template_artifacts_path/* $new_sandbox_path
-
-new_sandbox_compose_env_path=$new_sandbox_path/sb-compose.env
-
-#sb-compose.env: Prepend SB_COMPOSE_ROOT to sb-compose.env
-sed -i "1i SB_COMPOSE_ROOT=$new_sandbox_path" $new_sandbox_compose_env_path
-
-#sb-compose.env: Replace all references to '__SB_COMPOSE_ROOT__' with $SB_COMPOSE_ROOT
-sed -i "s#__SB_COMPOSE_ROOT__#$new_sandbox_path#g" $new_sandbox_compose_env_path
-
-#sb-compose.env: Replace all references to '__SB_COMPOSE_VOLUMES_ROOT__' with $new_sandbox_path/volumes
-sed -i "s#__SB_COMPOSE_VOLUMES_ROOT__#$new_sandbox_path/volumes#g" $new_sandbox_compose_env_path
+if [ $? -ne 0 ]; then
+  echo "${SCRIPT_MSG_PREFIX}: Error: Template artifacts copy failed"
+  exit 1
+fi
 
 #sb-sandbox.env: Appended module search path
 echo "SB_MODULE_SEARCH_PATH=\"$new_sandbox_path/modules\"" >> $new_sandbox_path/sb-sandbox.env
 
-echo "${SCRIPT_MSG_PREFIX}: Template artifact copy complete"
+echo "${SCRIPT_MSG_PREFIX}: Template artifact copy complete - host"
 

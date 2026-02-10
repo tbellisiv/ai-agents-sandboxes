@@ -32,9 +32,9 @@ s
 
   ## Task 2: Configure the docker-compose.yaml for the sb-ubuntu-noble-fw template use the sb-ubuntu-noble-fw image
 
-  - Add a sb-sandbox.env file to templates/sandboxes/sb-ubuntu-noble-fw/artifacts. The contents should mirror templates/sandboxes/sb-ubuntu-noble/artifacts/sb-sandbox.env with the exception that SB_IMAGE=sb-ubuntu-noble-fw:latest.
+  - Add a sb-sandbox.env file to templates/sandboxes/sb-ubuntu-noble-fw/artifacts. The contents should mirror templates/sandboxes/sb-ubuntu-noble/artifacts/sb-sandbox.env with the exception that SB_SANDBOX_IMAGE=sb-ubuntu-noble-fw:latest.
 
-  - Update line 47 of templates/sandboxes/sb-ubuntu-noble-fw/hooks/create/copy.sh to unconditionally set SB_IMAGE=sb-ubuntu-noble-fw:latest instead of attempting to match based on a regex.
+  - Update line 47 of templates/sandboxes/sb-ubuntu-noble-fw/hooks/create/copy.sh to unconditionally set SB_SANDBOX_IMAGE=sb-ubuntu-noble-fw:latest instead of attempting to match based on a regex.
 
 
   ## Task 3:  Add a sub-template list sub-command

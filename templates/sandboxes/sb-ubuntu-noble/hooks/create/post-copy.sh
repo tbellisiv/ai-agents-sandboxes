@@ -32,8 +32,8 @@ fi
 
 source $new_sandbox_env_path
 
-if [ -z "$SB_IMAGE" ]; then
-  echo "${SCRIPT_MSG_PREFIX}: Error: Variable 'SB_IMAGE' is defined in sandbox env file '$new_sandbox_env_path'"
+if [ -z "$SB_SANDBOX_IMAGE" ]; then
+  echo "${SCRIPT_MSG_PREFIX}: Error: Variable 'SB_SANDBOX_IMAGE' is defined in sandbox env file '$new_sandbox_env_path'"
   exit 1
 fi
 
@@ -42,15 +42,15 @@ fi
 
 temp_container_name="temp-$RANDOM-$RANDOM"
 
-docker create -q --name $temp_container_name $SB_IMAGE
+docker create -q --name $temp_container_name $SB_SANDBOX_IMAGE
 if [ $? -ne 0 ]; then
-  echo "${SCRIPT_MSG_PREFIX}: Error- failed to create temporary container '$temp_container_name' from image '$SB_IMAGE'"
+  echo "${SCRIPT_MSG_PREFIX}: Error- failed to create temporary container '$temp_container_name' from image '$SB_SANDBOX_IMAGE'"
   exit 1
 fi
 
-docker cp -q $temp_container_name:/sandbox/user/sb-login.env $new_sandbox_path/sb-login.env
+docker cp -q $temp_container_name:/sandbox/build/sb-login.env $new_sandbox_path/sb-login.env
 if [ $? -ne 0 ]; then
-  echo "${SCRIPT_MSG_PREFIX}: Error- failed to extract file '/sandbox/user/sb-login.env ' from temporary container '$temp_container_name'"
+  echo "${SCRIPT_MSG_PREFIX}: Error- failed to extract file '/sandbox/build/sb-login.env ' from temporary container '$temp_container_name'"
   exit 1
 fi
 

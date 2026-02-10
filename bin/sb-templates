@@ -217,13 +217,13 @@ list_templates() {
 		# Check if sb-sandbox.env exists
 		if [ -f "$env_file" ]; then
 			# Source the env file to get variables
-			SB_TEMPLATE_ID=""
-			SB_IMAGE=""
+			SB_SANDBOX_TEMPLATE_ID=""
+			SB_SANDBOX_IMAGE=""
 			. "$env_file"
 
-			# Use directory name if SB_TEMPLATE_ID not set
-			template_id="${SB_TEMPLATE_ID:-$template_name}"
-			image="${SB_IMAGE:-<not specified>}"
+			# Use directory name if SB_SANDBOX_TEMPLATE_ID not set
+			template_id="${SB_SANDBOX_TEMPLATE_ID:-$template_name}"
+			image="${SB_SANDBOX_IMAGE:-<not specified>}"
 
 			printf "%-25s %s\n" "$template_id" "$image"
 			found_templates=1

@@ -119,7 +119,7 @@ Modules extend sandbox functionality via hooks executed at different lifecycle p
 4. System: `<install-root>/modules/`
 5. User: `SB_USER_MODULE_SEARCH_PATH` in user.env
 
-Module IDs are specified in: `SB_MODULES`, `SB_PROJECT_DEFAULT_MODULES`, `SB_USER_DEFAULT_MODULES`, `SB_SYSTEM_DEFAULT_MODULES`
+Module IDs are specified in: `SB_SANDBOX_MODULES`, `SB_PROJECT_DEFAULT_MODULES`, `SB_USER_DEFAULT_MODULES`, `SB_SYSTEM_DEFAULT_MODULES`
 
 ### Volume Management
 

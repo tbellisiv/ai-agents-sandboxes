@@ -117,7 +117,7 @@ Create a script that:
 
 Copy the docker-compose.yml from `sb-ubuntu-noble/artifacts/` and modify:
 - Keep the same structure and volume mounts
-- The `SB_IMAGE` variable will be set to `sb-ubuntu-noble-fw` in the sandbox's sb-sandbox.env
+- The `SB_SANDBOX_IMAGE` variable will be set to `sb-ubuntu-noble-fw` in the sandbox's sb-sandbox.env
 
 ### Step 12: Create artifacts/README.md
 

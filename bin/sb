@@ -537,10 +537,10 @@ get_sandbox_cmd_conf()
 	fi
 
 	# source sb-sandbox.env so we can get the path to the shell
-  SB_SHELL=
+  SB_SANDBOX_SHELL=
 	source $sandbox_env_path
-  if [ -z "$SB_SHELL" ]; then
-		echo "$SCRIPT_NAME: Sandbox validation error- variable 'SB_SHELL' is not defined in '$sandbox_env_path'"
+  if [ -z "$SB_SANDBOX_SHELL" ]; then
+		echo "$SCRIPT_NAME: Sandbox validation error- variable 'SB_SANDBOX_SHELL' is not defined in '$sandbox_env_path'"
 		exit 1
 	fi
 
@@ -561,7 +561,7 @@ get_sandbox_cmd_conf()
 	sb_conf="${sb_conf} __compose_file=$docker_compose_file_path"
 	sb_conf="${sb_conf} __compose_env_path=$compose_env_path"
 	sb_conf="${sb_conf} __compose_service=$SB_COMPOSE_SERVICE"
-	sb_conf="${sb_conf} __shell=$SB_SHELL"
+	sb_conf="${sb_conf} __shell=$SB_SANDBOX_SHELL"
 
   echo -n "$sb_conf"
 }
@@ -1103,8 +1103,8 @@ sandbox_sync() {
 
 	echo ""
 
-	echo "$SCRIPT_NAME: Running: docker compose -f $__compose_file create -y"
-	docker compose -f $__compose_file create -y 
+	echo "$SCRIPT_NAME: Running: docker compose -f $__compose_file create -y --remove-orphans"
+	docker compose -f $__compose_file create -y --remove-orphans 
 	if [ $? -ne 0 ]; then
 		echo "$SCRIPT_NAME: Sandbox rebuild failed"
 		exit 1
@@ -1161,12 +1161,12 @@ sync_image() {
   fi  
   eval "$cmd_conf"
 
-	#source sb-sandbox.env to get SB_TEMPLATE_ID/SB_IMAGE
+	#source sb-sandbox.env to get SB_SANDBOX_TEMPLATE_ID/SB_SANDBOX_IMAGE
 	sb_sandbox_env_path=${__sandbox_root}/sb-sandbox.env
 	source $sb_sandbox_env_path
 	
 	echo ""
-	echo "$SCRIPT_NAME: Rebuilding sandbox image '$SB_IMAGE'"
+	echo "$SCRIPT_NAME: Rebuilding sandbox image '$SB_SANDBOX_IMAGE'"
 	echo ""
 
 	sb_install_root=$SCRIPT_DIR/..
@@ -1180,7 +1180,7 @@ sync_image() {
 	sandboxes_template_root_abs=$(readlink -f $sandboxes_template_root)
 
 	#verify sandbox template path exists
-	template_path=$sandboxes_template_root_abs/$SB_TEMPLATE_ID
+	template_path=$sandboxes_template_root_abs/$SB_SANDBOX_TEMPLATE_ID
   if [ ! -d "${template_path}" ]; then
     echo "$SCRIPT_NAME: Error: Unable to sync sandbox image- template directory '$template_path' does not exist"
     exit 1
@@ -1234,12 +1234,21 @@ sync_modules() {
 	IFS_CURRENT="$IFS"
 	IFS=':'
 
-	#source sb-compose.env to get SB_COMPOSE_VOLUME_MODULES_ROOT
+	#source sb-sandbox.env to get SB_SANDBOX_MODULES_ROOT/SB_SANDBOX_MODULES/SB_MODULE_SEARCH_PATH
+	sb_sandbox_env_path="$(readlink -f $__sandbox_root/sb-sandbox.env)"
+	if [ -f $sb_sandbox_env_path ]; then
+		source $sb_sandbox_env_path
+	else
+		echo "$SCRIPT_NAME: Unable to sync sandbox modules- file '$sb_sandbox_env_path' does not exist"
+		exit 1
+	fi
+
+	#source sb-compose.env to get SB_COMPOSE_SERVICE
 	sb_compose_env_path="$(readlink -f $__sandbox_root/sb-compose.env)"
 	if [ -f $sb_compose_env_path ]; then
 		source $sb_compose_env_path
-		if [ -z "$SB_COMPOSE_VOLUME_MODULES_ROOT" ]; then
-			echo "$SCRIPT_NAME: Unable to sync sandbox modules- SB_COMPOSE_VOLUME_MODULES_ROOT is not defined in file '$sb_compose_env_path'"
+		if [ -z "$SB_COMPOSE_SERVICE" ]; then
+			echo "$SCRIPT_NAME: Unable to sync sandbox modules- SB_COMPOSE_SERVICE is not defined in file '$sb_compose_env_path'"
 			exit 1
 		fi
 	else
@@ -1247,35 +1256,23 @@ sync_modules() {
 		exit 1
 	fi
 
-	#verify SB_COMPOSE_VOLUME_MODULES_ROOT directory exists
-	if [ ! -d "$SB_COMPOSE_VOLUME_MODULES_ROOT" ]; then
-		echo "$SCRIPT_NAME: Aborting- sandbox module install directory '$SB_COMPOSE_VOLUME_MODULES_ROOT' does not exist"
-		exit 1
-	fi
-
-	#sanit check: verify SB_COMPOSE_VOLUME_MODULES_ROOT is within the sandbox volumes directory tree
-	if [[ "$SB_COMPOSE_VOLUME_MODULES_ROOT" != "$__sandbox_root"/volumes/* ]]; then
-		echo "$SCRIPT_NAME: Aborting- sandbox module install directory '$SB_COMPOSE_VOLUME_MODULES_ROOT' is not within the sandbox directory tree"
+	sandbox_compose_file_path=$__sandbox_root/docker-compose.yml
+	if [ ! -f "${sandbox_compose_file_path}" ]; then
+		echo "${SCRIPT_MSG_PREFIX}: Error: Docker compose file '$sandbox_compose_file_path' does not exist"
 		exit 1
 	fi
 
 	module_dirs=()
 	module_ids=()
 
-	# source sb-sandbox.env to read SB_MODULES/SB_MODULE_SEARCH_PATH
-	if [ -f $__sandbox_root/sb-sandbox.env ]; then
 
-		source $__sandbox_root/sb-sandbox.env
+	if [ ${#SB_MODULE_SEARCH_PATH[@]} -ne 0 ]; then
+		read -ra dirs <<< "$SB_MODULE_SEARCH_PATH"
+		module_dirs+=("${dirs[@]}")
+	fi
 
-		if [ ${#SB_MODULE_SEARCH_PATH[@]} -ne 0 ]; then
-			read -ra dirs <<< "$SB_MODULE_SEARCH_PATH"
-			module_dirs+=("${dirs[@]}")
-		fi
-
-		if [ ${#SB_MODULES[@]} -ne 0 ]; then
-			module_ids+=("${SB_MODULES[@]}")
-		fi
-
+	if [ ${#SB_SANDBOX_MODULES[@]} -ne 0 ]; then
+		module_ids+=("${SB_SANDBOX_MODULES[@]}")
 	fi
 
 	# source sb-project.env to read SB_PROJECT_DEFAULT_MODULES/SB_PROJECT_MODULE_SEARCH_PATH
@@ -1315,49 +1312,70 @@ sync_modules() {
 
 	fi
 
-	if [[ ${#module_ids[@]} -ne 0 && ${#module_dirs[@]} -ne 0 ]]; then
+	#remove any existing modules
+	echo "$SCRIPT_NAME: Scanning for existing modules"
+	echo "$SCRIPT_NAME: Executing: docker compose -f $sandbox_compose_file_path run --entrypoint '' --remove-orphans $SB_COMPOSE_SERVICE find $SB_SANDBOX_MODULES_ROOT -maxdepth 1 -mindepth 1 -type d -printf '%f '"
+	existing_modules=$(docker compose -f $sandbox_compose_file_path run --entrypoint '' --remove-orphans $SB_COMPOSE_SERVICE find $SB_SANDBOX_MODULES_ROOT -maxdepth 1 -mindepth 1 -type d -printf '%f ')
+	if [ $? -ne 0 ]; then
+		echo "$SCRIPT_NAME: Error: Docker compose 'run find ...' failed"
+		exit 1
+	fi
 
-		existing_modules=$(find $SB_COMPOSE_VOLUME_MODULES_ROOT -maxdepth 1 -mindepth 1 -type d -printf '%f ')
-
-		if [ -n "$existing_modules" ]; then
-			echo "$SCRIPT_NAME: Removing installed sandbox modules: $existing_modules"
-			rm -rf $SB_COMPOSE_VOLUME_MODULES_ROOT/*
-			if [ $? -ne 0 ]; then
-				echo "$SCRIPT_NAME: Aborting- failed to remove installed modules"
-				exit 1
-			fi
+	if [ -n "$existing_modules" ]; then
+		echo "$SCRIPT_NAME: Removing installed sandbox modules: $existing_modules"
+		echo "$SCRIPT_NAME: Executing : docker compose -f $sandbox_compose_file_path run --entrypoint '' --remove-orphans $SB_COMPOSE_SERVICE rm -rf $SB_SANDBOX_MODULES_ROOT/*"
+		docker compose -f $sandbox_compose_file_path run --entrypoint '' --remove-orphans $SB_COMPOSE_SERVICE rm -rf $SB_SANDBOX_MODULES_ROOT/*
+		if [ $? -ne 0 ]; then
+			echo "$SCRIPT_NAME: Error: Docker compose 'run rm ...' failed"
+			exit 1
 		fi
-		echo ""
-		echo "$SCRIPT_NAME: Installing ${#module_ids[@]} sandbox module(s)"
-		echo ""
-		echo "$SCRIPT_NAME: Module search path: ${module_dirs[@]}"
-		echo ""
+	fi
 
-		for mod_id in "${module_ids[@]}"; do
+	echo ""
 
-			mod_source_path=
-			for dir in "${module_dirs[@]}"; do
-				if [ -d "$dir/$mod_id" ]; then
-					mod_source_path="$dir/$mod_id"
-					break
-				fi
-			done
+	module_count=${#module_ids[@]} 
+	if [ ${module_count:-0} -eq 0 ]; then
+		echo "$SCRIPT_NAME: No modules to install- skipping module sync"
+		return 0
+	fi
 
-			if [ -z "$mod_source_path" ]; then
-				echo "$SCRIPT_NAME: Aborting- failed to resolve source path for module '$mod_id' in the module search path (${#module_dirs[@]})"
-				exit 1
+	module_search_dir_count=${#module_dirs[@]} 
+	if [ ${module_search_dir_count:-0} -eq 0 ]; then
+		echo "SCRIPT_NAME: Error- unable to install modules- no directories are specified in module search paths"
+		exit 1
+	fi
+
+	echo ""
+	echo "$SCRIPT_NAME: Installing ${#module_ids[@]} sandbox module(s)"
+	echo ""
+	echo "$SCRIPT_NAME: Module search path: ${module_dirs[@]}"
+	echo ""
+
+	for mod_id in "${module_ids[@]}"; do
+
+		mod_source_path=
+		for dir in "${module_dirs[@]}"; do
+			if [ -d "$dir/$mod_id" ]; then
+				mod_source_path="$dir/$mod_id"
+				break
 			fi
-
-			echo "$SCRIPT_NAME: Installing module '$mod_id' : $mod_source_path --> $SB_COMPOSE_VOLUME_MODULES_ROOT/$mod_id"
-			cp -rf "$mod_source_path" "$SB_COMPOSE_VOLUME_MODULES_ROOT/$mod_id"
-			if [ $? -ne 0 ]; then
-				echo "$SCRIPT_NAME: Aborting- install of '$mod_id' in the module search path "
-				exit 1
-			fi
-
 		done
 
-	fi
+		if [ -z "$mod_source_path" ]; then
+			echo "$SCRIPT_NAME: Aborting- failed to resolve source path for module '$mod_id' in the module search path (${#module_dirs[@]})"
+			exit 1
+		fi
+
+		echo "$SCRIPT_NAME: Installing module '$mod_id' : $mod_source_path --> $SB_SANDBOX_MODULES_ROOT/$mod_id"
+		echo "$SCRIPT_NAME: Running : docker compose -f $sandbox_compose_file_path cp ${mod_source_path}/. ${SB_COMPOSE_SERVICE}:$SB_SANDBOX_MODULES_ROOT"
+		docker compose -f $sandbox_compose_file_path cp ${mod_source_path}/. ${SB_COMPOSE_SERVICE}:$SB_SANDBOX_MODULES_ROOT
+		if [ $? -ne 0 ]; then
+			echo "$SCRIPT_NAME: Error: Install of module '$mod_id' failed- Docker compose 'cp' failed"
+			exit 1
+		fi
+
+	done
+
 
 	IFS="$IFS_CURRENT"
 }
@@ -1418,8 +1436,11 @@ sync_env() {
 		fi
 	done
 
-	# add computed sandbox-level env
-	env+=("SB_SANDBOX_ROOT=$__sandbox_root" "SB_SANDBOX_ID=$__sandbox_id" "SB_SANDBOX_TZ=$SB_PROJECT_TZ")
+	host_workspace_main_root=$(readlink -f $__project_root/..)
+	sandbox_workspace_main_root=/workspace/$(basename $host_workspace_main_root)
+
+	# add computed/project-inherited sandbox-level env
+	env+=("SB_SANDBOX_ROOT=$__sandbox_root" "SB_SANDBOX_ID=$__sandbox_id" "SB_SANDBOX_TZ=$SB_PROJECT_TZ" "SB_SANDBOX_WORKSPACE_MAIN_ROOT=$sandbox_workspace_main_root")
 
 	# Add sandbox/login/compose env
 	env_files="$__sandbox_root/sb-sandbox.env $__sandbox_root/sb-login.env $__sandbox_root/sb-compose.env"
@@ -1497,8 +1518,8 @@ sandbox_up() {
   eval "$cmd_conf"
 
   echo "$SCRIPT_NAME: Ensuring: sandbox '$__sandbox_id' at '$__sandbox_root' is created and running"
-	echo "$SCRIPT_NAME: Running : docker compose -f $__compose_file up -d"
-	docker compose -f $__compose_file up -d
+	echo "$SCRIPT_NAME: Running : docker compose -f $__compose_file up --remove-orphans -d"
+	docker compose -f $__compose_file up --remove-orphans -d
 	if [ $? -ne 0 ]; then
 		echo "$SCRIPT_NAME: Error: Sandbox 'up' failed"
 		exit 1
@@ -1522,9 +1543,9 @@ sandbox_down() {
   eval "$cmd_conf"
 
   echo "$SCRIPT_NAME: Ensuring: tearing down sandbox '$__sandbox_id' at '$__sandbox_root'"
-	echo "$SCRIPT_NAME: Running: docker compose -f $__compose_file down"
+	echo "$SCRIPT_NAME: Running: docker compose -f $__compose_file down -v -t 300"
   echo ""
-	docker compose -f $__compose_file down
+	docker compose -f $__compose_file down -v -t 300
 	if [ $? -ne 0 ]; then
 		echo "$SCRIPT_NAME: Error: Sandbox 'down' failed"
 		exit 1
@@ -1628,7 +1649,8 @@ sandbox_rm() {
 	echo "$SCRIPT_NAME: Deleting sandbox '$__sandbox_id' at '$__sandbox_root'"
 	echo ""
 
-	docker compose -f $__compose_file down -t 120 -v --remove-orphans
+	echo "$SCRIPT_NAME: Executing: docker compose -f $__compose_file down -t 300 -v --remove-orphans"
+	docker compose -f $__compose_file down -t 300 -v --remove-orphans
 	if [ $? -ne 0 ]; then
 	 	echo "$SCRIPT_NAME: Sandbox deletion failed- 'docker compose down' failed"
 		exit 1
@@ -1780,9 +1802,15 @@ sandbox_new() {
     exit 1
   fi
 
-	template_hook_create_copy_script_path=$template_hooks_create_path/copy.sh
-	if [ ! -f "${template_hook_create_copy_script_path}" ]; then
-    echo "$SCRIPT_NAME: Error: Unable to create new sandbox- template hook create script '$template_hook_create_copy_script_path' does not exist"
+	template_hook_create_copy_host_script_path=$template_hooks_create_path/copy-host.sh
+	if [ ! -f "${template_hook_create_copy_host_script_path}" ]; then
+    echo "$SCRIPT_NAME: Error: Unable to create new sandbox- template hook create script '$template_hook_create_copy_host_script_path' does not exist"
+    exit 1
+  fi
+
+		template_hook_create_post_container_create_script_path=$template_hooks_create_path/post-container-create.sh
+	if [ ! -f "${template_hook_create_post_container_create_script_path}" ]; then
+    echo "$SCRIPT_NAME: Error: Unable to create new sandbox- template hook create script '$template_hook_create_post_container_create_script_path' does not exist"
     exit 1
   fi
 
@@ -1817,7 +1845,7 @@ sandbox_new() {
 		fi
 	fi
 
-	$template_hook_create_copy_script_path $sandbox_dest_path
+	$template_hook_create_copy_host_script_path $sandbox_dest_path
 	if [ $? -ne 0 ]; then
 		echo "$SCRIPT_NAME: Error: Failed to create new sandbox- template artifact copy failed"
 		exit 1
@@ -1831,29 +1859,65 @@ sandbox_new() {
 		fi
 	fi
 
+	echo "$SCRIPT_NAME: Generating Docker Compose .env"
 	sync_env
 	if [ $? -ne 0 ]; then
 		echo "$SCRIPT_NAME: Error: Failed to write '$sandbox_compose_env_path'"
 		exit 
 	fi
 
+	echo "$SCRIPT_NAME: Validating Docker Compose .env"
 	sandbox_env_path=$sandbox_dest_path/sb-sandbox.env
 	if [ ! -f "$sandbox_env_path" ]; then
 		echo "$SCRIPT_NAME: Sandbox validation error- file '$sandbox_env_path' does not exist"
 		exit 1
 	fi
 
+	echo "$SCRIPT_NAME: Creating Sandbox Container"
+
+	sandbox_compose_env_path=$sandbox_dest_path/sb-compose.env
+	if [ ! -f "$sandbox_compose_env_path" ]; then
+		echo "$SCRIPT_NAME: Sandbox validation error- file '$sandbox_compose_env_path' does not exist"
+		exit 1
+	fi
+
+	source $sandbox_compose_env_path
+	if [ -z "${SB_COMPOSE_SERVICE}" ]; then
+		echo "${SCRIPT_MSG_PREFIX}: Error: Variable 'SB_COMPOSE_SERVICE' is not defined in file '$sandbox_compose_env_path'"
+		exit 1
+	fi
+
+	sandbox_compose_file_path=$sandbox_dest_path/docker-compose.yml
+	if [ ! -f "${sandbox_compose_file_path}" ]; then
+		echo "${SCRIPT_MSG_PREFIX}: Error: Docker compose file '$sandbox_compose_file_path' does not exist"
+		exit 1
+	fi
+
+	echo "$SCRIPT_NAME: Running : docker compose -f $sandbox_compose_file_path up --no-start"
+	docker compose -f $sandbox_compose_file_path up --no-start
+	if [ $? -ne 0 ]; then
+		echo "$SCRIPT_NAME: Error: Docker compose 'up' failed"
+		exit 1
+	fi
+
+	echo "$SCRIPT_NAME: Executing Post Container Create script"
+	$template_hook_create_post_container_create_script_path $sandbox_dest_path
+	if [ $? -ne 0 ]; then
+		echo "$SCRIPT_NAME: Error: Execution of '$template_hook_create_post_container_create_script_path' failed"
+		exit 1
+	fi
+
+	echo "$SCRIPT_NAME: Installing sandbox modules"
 	sync_modules
   if [ $? -ne 0 ]; then
     exit 1
   fi  
 
-
 	source $sandbox_env_path
 
 	sandbox_compose_env_path=$sandbox_dest_path/sb-compose.env
-	if [ -z "$SB_SHELL" ]; then
-		echo "$SCRIPT_NAME: Sandbox validation error- variable 'SB_SHELL' is not defined in '$sandbox_env_path'"
+	if [ -z "$SB_SANDBOX_SHELL" ]; then
+		echo "$SCRIPT_NAME: Sandbox validation error- variable 'SB_SANDBOX_SHELL' is not defined in '$sandbox_env_path'"
 		exit 1
 	fi
 
@@ -1872,7 +1936,7 @@ sandbox_new() {
 
 	cat <<EOF
 
-Sandbox creation complete."
+Sandbox creation complete.
 
 Created sandbox '$sandbox' at '$sandbox_dest_path'
 
@@ -1900,7 +1964,7 @@ Next Steps:
 	
     or:
 	
-    'cd $sandbox_dest_path && docker compose exec ${SB_COMPOSE_SERVICE} ${SB_SHELL}'
+    'cd $sandbox_dest_path && docker compose exec ${SB_COMPOSE_SERVICE} ${SB_SANDBOX_SHELL}'
 
 EOF
 
