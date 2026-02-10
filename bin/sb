@@ -1338,8 +1338,8 @@ sync_modules() {
 
 	#remove any existing modules
 	echo "$SCRIPT_NAME: Scanning for existing modules"
-	echo "$SCRIPT_NAME: Executing: docker compose -f $sandbox_compose_file_path run --entrypoint '' --remove-orphans $SB_COMPOSE_SERVICE find $SB_SANDBOX_MODULES_ROOT -maxdepth 1 -mindepth 1 -type d -printf '%f '"
-	existing_modules=$(docker compose -f $sandbox_compose_file_path run --entrypoint '' --remove-orphans $SB_COMPOSE_SERVICE find $SB_SANDBOX_MODULES_ROOT -maxdepth 1 -mindepth 1 -type d -printf '%f ')
+	echo "$SCRIPT_NAME: Executing: docker compose -f $sandbox_compose_file_path run --rm --entrypoint '' --remove-orphans $SB_COMPOSE_SERVICE find $SB_SANDBOX_MODULES_ROOT -maxdepth 1 -mindepth 1 -type d -printf '%f '"
+	existing_modules=$(docker compose -f $sandbox_compose_file_path run --rm --entrypoint '' --remove-orphans $SB_COMPOSE_SERVICE find $SB_SANDBOX_MODULES_ROOT -maxdepth 1 -mindepth 1 -type d -printf '%f ')
 	if [ $? -ne 0 ]; then
 		echo "$SCRIPT_NAME: Error: Docker compose 'run find ...' failed"
 		exit 1
@@ -1347,8 +1347,8 @@ sync_modules() {
 
 	if [ -n "$existing_modules" ]; then
 		echo "$SCRIPT_NAME: Removing installed sandbox modules: $existing_modules"
-		echo "$SCRIPT_NAME: Executing : docker compose -f $sandbox_compose_file_path run --entrypoint '' --remove-orphans $SB_COMPOSE_SERVICE rm -rf $SB_SANDBOX_MODULES_ROOT/*"
-		docker compose -f $sandbox_compose_file_path run --entrypoint '' --remove-orphans $SB_COMPOSE_SERVICE rm -rf $SB_SANDBOX_MODULES_ROOT/*
+		echo "$SCRIPT_NAME: Executing : docker compose -f $sandbox_compose_file_path run --rm --entrypoint '' --remove-orphans $SB_COMPOSE_SERVICE rm -rf $SB_SANDBOX_MODULES_ROOT/*"
+		docker compose -f $sandbox_compose_file_path run --rm --entrypoint '' --remove-orphans $SB_COMPOSE_SERVICE rm -rf $SB_SANDBOX_MODULES_ROOT/*
 		if [ $? -ne 0 ]; then
 			echo "$SCRIPT_NAME: Error: Docker compose 'run rm ...' failed"
 			exit 1
@@ -1391,8 +1391,8 @@ sync_modules() {
 		fi
 
 		echo "$SCRIPT_NAME: Installing module '$mod_id' : $mod_source_path --> $SB_SANDBOX_MODULES_ROOT/$mod_id"
-		echo "$SCRIPT_NAME: Running : docker compose -f $sandbox_compose_file_path cp ${mod_source_path}/. ${SB_COMPOSE_SERVICE}:$SB_SANDBOX_MODULES_ROOT"
-		docker compose -f $sandbox_compose_file_path cp ${mod_source_path}/. ${SB_COMPOSE_SERVICE}:$SB_SANDBOX_MODULES_ROOT
+		echo "$SCRIPT_NAME: Running : docker compose -f $sandbox_compose_file_path cp ${mod_source_path}/. ${SB_COMPOSE_SERVICE}:$SB_SANDBOX_MODULES_ROOT/$mod_id"
+		docker compose -f $sandbox_compose_file_path cp ${mod_source_path}/. ${SB_COMPOSE_SERVICE}:$SB_SANDBOX_MODULES_ROOT/$mod_id
 		if [ $? -ne 0 ]; then
 			echo "$SCRIPT_NAME: Error: Install of module '$mod_id' failed- Docker compose 'cp' failed"
 			exit 1

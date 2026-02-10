@@ -41,18 +41,12 @@ RUN DEBIAN_FRONTEND=noninteractive apt-get update && apt-get upgrade -y && apt-g
     bash-completion
 
 #-- Initialize workspace mount dir
-ENV WORKSPACE_MAIN_ROOT=/workspace/main
-RUN mkdir -p /workspace/main
-
-# Create empty directory mount to hide the sandbox project files
-RUN mkdir -p /workspace/main/.sb
+ENV WORKSPACE_ROOT=/workspace
+RUN mkdir -p /workspace
 
 #-- Initialize sandbox mount dirs mount
 ENV SANDBOX_ROOT=/sandbox
-ENV SANDBOX_INIT_ROOT=/sandbox/init
-ENV SANDBOX_SECRETS_ROOT=/sandbox/secrets
-RUN mkdir -p /sandbox/init
-RUN mkdir -p /sandbox/secrets
+RUN mkdir -p /sandbox
 
 #-- Create directory for info on the user account
 RUN mkdir -p /sandbox/build
