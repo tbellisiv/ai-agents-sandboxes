@@ -9,14 +9,6 @@
       #   sandbox:
       #     path: __ENV__SB_SANDBOX_USER_SECRETS_ROOT/.ssh
 
-      # Example: Sync a single file in host user's home to the sandbox user's .ssh/ sub-directory under the sandbox user's home directory.
-      # - host: 
-      #     path: 
-      #       - $HOME/.ssh/my_ssh_key
-      #   sandbox:
-      #     path: __ENV__SB_SANDBOX_USER_ROOT/.ssh
-
-
       # Example: Sync a single file to the sandbox user's home directory and rename the file. __ENV__SB_LOGIN_USER_HOME is a token that is replace by looking up the 
       # - host: 
       #     path: 
