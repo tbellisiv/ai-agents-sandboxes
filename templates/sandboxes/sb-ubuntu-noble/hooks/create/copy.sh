@@ -26,10 +26,18 @@ fi
 
 cp -r -f $template_artifacts_path/* $new_sandbox_path
 
-#prepend SB_COMPOSE_ROOT to sb-compose.env
-sed -i "1i SB_COMPOSE_ROOT=$new_sandbox_path" $new_sandbox_path/sb-compose.env
+new_sandbox_compose_env_path=$new_sandbox_path/sb-compose.env
 
-# Add module search path to sb-sandbox.env
+#sb-compose.env: Prepend SB_COMPOSE_ROOT to sb-compose.env
+sed -i "1i SB_COMPOSE_ROOT=$new_sandbox_path" $new_sandbox_compose_env_path
+
+#sb-compose.env: Replace all references to '__SB_COMPOSE_ROOT__' with $SB_COMPOSE_ROOT
+sed -i "s#__SB_COMPOSE_ROOT__#$new_sandbox_path#g" $new_sandbox_compose_env_path
+
+#sb-compose.env: Replace all references to '__SB_COMPOSE_VOLUMES_ROOT__' with $new_sandbox_path/volumes
+sed -i "s#__SB_COMPOSE_VOLUMES_ROOT__#$new_sandbox_path/volumes#g" $new_sandbox_compose_env_path
+
+#sb-sandbox.env: Appended module search path
 echo "SB_MODULE_SEARCH_PATH=\"$new_sandbox_path/modules\"" >> $new_sandbox_path/sb-sandbox.env
 
 echo "${SCRIPT_MSG_PREFIX}: Template artifact copy complete"

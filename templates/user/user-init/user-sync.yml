@@ -1,0 +1,61 @@
+  sync:
+
+    spec: 
+
+      # Example: Sync a single file in host user's home to the sandbox user's .ssh/ sub-directory under the sandbox user's home directory.
+      # - host: 
+      #     path: 
+      #       - $HOME/.ssh/my_ssh_key
+      #   sandbox:
+      #     path: __ENV__SB_LOGIN_USER_HOME/.ssh
+
+      # Example: Sync a single file in host user's home to the sandbox user's .ssh/ sub-directory under the sandbox user's home directory.
+      # - host: 
+      #     path: 
+      #       - $HOME/.ssh/my_ssh_key
+      #   sandbox:
+      #     path: __ENV__SB_LOGIN_USER_HOME/.ssh
+
+
+      # Example: Sync a single file to the sandbox user's home directory and rename the file. __ENV__SB_LOGIN_USER_HOME is a token that is replace by looking up the 
+      # - host: 
+      #     path: 
+      #       - $HOME/my-file.txt
+      #   sandbox:
+      #     path: __ENV__SB_LOGIN_USER_HOME/my-file-renamed.txt
+
+      # Example: Sync a directory on the host to a directory in the sandbox- filtering the files based on a rysnc include pattern
+      # - host: 
+      #     path: 
+      #       - $HOME/.config
+      #   sandbox:
+      #     path: __ENV__SB_LOGIN_USER_HOME
+      #     include: 
+      #       - '*.env'
+      #       - 'tmux/***'
+      #       - nvim/
+      #       - mimeapps.txt
+
+      # Example: Sync a directory on the host to a directory in the sandbox- filtering the files based on a rysnc exclude patterns
+      # - host: 
+      #     path: 
+      #       - $HOME/.config
+      #   sandbox:
+      #     path: __ENV__SB_LOGIN_USER_HOME
+      #     exclude:
+      #       - '**/*secrets*'
+      #       - 'tmux/tmux.conf'
+
+      # Example: Sync a directory on the host to a directory in the sandbox- filtering the files based on rysnc include and exclude patterns
+      # - host: 
+      #     path: 
+      #       - $HOME/.config
+      #   sandbox:
+      #     path: __ENV__SB_LOGIN_USER_HOME
+      #     include: 
+      #       - '*.env'
+      #       - 'tmux/***'
+      #       - nvim/
+      #       - mimeapps.txt
+      #     exclude:
+      #       - '**/*secrets*'

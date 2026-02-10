@@ -31,10 +31,10 @@ The objective is to add support for using the rsync command to copy files from t
 
     spec: 
 
-      # Example 1: Sync a single file in host user's home to the sandbox user's .ssh/ sub-directory under the sandbox user's home directory.
+      # Example 1: Sync a single file to the sandbox user's .ssh/ sub-directory under the sandbox user's home directory.
       - host: 
           path: 
-            - $HOME/.ssh/tbellisiv_mediware_github
+            - $HOME/.ssh/my_ssh_key
         sandbox:
           path: __ENV__SB_LOGIN_USER_HOME/.ssh
 
@@ -45,7 +45,7 @@ The objective is to add support for using the rsync command to copy files from t
         sandbox:
           path: __ENV__SB_LOGIN_USER_HOME/my-file-renamed.txt
 
-      # Example 3: Sync a directory on the host to a directory in the sandbox- filtering the files based on rysnc include pattern
+      # Example 3: Sync a directory on the host to a directory in the sandbox- filtering the files based on a rysnc include pattern
       - host: 
           path: 
             - $HOME/.config
@@ -75,7 +75,7 @@ The objective is to add support for using the rsync command to copy files from t
           path: __ENV__SB_LOGIN_USER_HOME
           include: 
             - '*.env'
-            - 'tmux/***''
+            - 'tmux/***'
             - nvim/
             - mimeapps.txt
           exclude:

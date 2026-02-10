@@ -81,184 +81,40 @@ init_user_env() {
 		echo  "$SCRIPT_NAME: Aborting sandbox user config initialization- failed to create project root directory '$user_sb_env_root'"
 		exit 1
 	fi
-
-  user_env_path=$user_sb_env_root/user.env
-  user_secrets_env_path=$user_sb_env_root/user-secrets.env
-  user_compose_include_path=$user_sb_env_root/user-compose-include.yml
-  user_modules_dir_path=$user_sb_env_root/modules
-  user_example_module_dir_path=$user_modules_dir_path/user-example
-
-  echo "$SCRIPT_NAME: Creating file: $user_env_path"
-  cat <<EOF > $user_env_path
-#SB_USER_DEFAULT_TEMPLATE_ID=
-#SB_USER_DEFAULT_SANDBOX_ID=
-
-SB_USER_MODULE_SEARCH_PATH="${user_modules_dir_path}"
-#SB_USER_DEFAULT_MODULES=("$(basename $user_example_module_dir_path)")
-EOF
-  if [ $? -ne 0 ]; then
-		echo  "$SCRIPT_NAME: Aborting sandbox user config initialization- failed to create file $user_env_path"
-		exit 1
-	fi
-
-  echo "$SCRIPT_NAME: Creating file: $user_secrets_env_path"
-  cat <<EOF > $user_secrets_env_path
-EOF
-  if [ $? -ne 0 ]; then
-		echo  "$SCRIPT_NAME: Aborting sandbox user config initialization- failed to create file '$user_secrets_env_path'"
-		exit 1
-	fi
-
-  echo "$SCRIPT_NAME: Creating file: $user_compose_include_path"
-  cat <<EOF > $user_compose_include_path
-# Example: Mount an additional dev project into the container
-#
-# services:
-#   sandbox:
-#         volumes:
-#             # Mount another_project/ in the host to /workspace/another_project
-#             - workspace_main:/workspace/user_another_project:delegated    
-# volumes:
-#     user_another_project:
-#         driver: local
-#         driver_opts:
-#             type: none
-#             device: /path/to/another_project
-#             o: bind
-EOF
-  if [ $? -ne 0 ]; then
-		echo  "$SCRIPT_NAME: Aborting sandbox user config initialization- failed to create file '$user_compose_include_path'"
-		exit 1
-	fi
-
-  echo "$SCRIPT_NAME: Creating dir : ${user_modules_dir_path}/"
-  mkdir -p $user_modules_dir_path
-  if [ $? -ne 0 ]; then
-		echo  "$SCRIPT_NAME: Aborting sandbox user config initialization- failed to create directory '$user_modules_dir_path'"
-		exit 1
-	fi
-
-  echo "$SCRIPT_NAME: Creating dir : ${user_example_module_dir_path}/"
-  mkdir -p $user_example_module_dir_path
-  if [ $? -ne 0 ]; then
-		echo  "$SCRIPT_NAME: Aborting sandbox user config initialization- failed to create directory '$user_example_module_dir_path'"
-		exit 1
-	fi
-
-  module_readme_path=$user_example_module_dir_path/README.md
-  echo "$SCRIPT_NAME: Creating file: ${module_readme_path}"
-  cat <<EOF > $module_readme_path
-# Example Sandbox Module
-EOF
-  if [ $? -ne 0 ]; then
-		echo  "$SCRIPT_NAME: Aborting sandbox user config initialization- failed to create file '$module_readme_path'"
-		exit 1
-	fi
-
-  artifacts_dir=${user_example_module_dir_path}/artifacts
-  echo "$SCRIPT_NAME: Creating dir : ${artifacts_dir}/"
-  mkdir -p $artifacts_dir
-  if [ $? -ne 0 ]; then
-		echo  "$SCRIPT_NAME: Aborting sandbox user config initialization- failed to create directory '$artifacts_dir'"
-		exit 1
-	fi
-
-  artifacts_readme_path=$artifacts_dir/README.md
-  echo "$SCRIPT_NAME: Creating file: ${artifacts_readme_path}"
-  cat <<EOF > $artifacts_readme_path
-Add any dependencies required for the module hooks (configuration files, scripts) here.
-EOF
-  if [ $? -ne 0 ]; then
-		echo  "$SCRIPT_NAME: Aborting sandbox user config initialization- failed to create file '$artifacts_readme_path'"
-		exit 1
-	fi
-
-  hooks_dir=${user_example_module_dir_path}/hooks
-  echo "$SCRIPT_NAME: Creating dir : ${hooks_dir}/"
-  mkdir -p $hooks_dir
-  if [ $? -ne 0 ]; then
-		echo  "$SCRIPT_NAME: Aborting sandbox user config initialization- failed to create directory '$hooks_dir'"
-		exit 1
-	fi
-
-  init_hooks_dir=${hooks_dir}/init
-  echo "$SCRIPT_NAME: Creating dir : ${init_hooks_dir}/"
-  mkdir -p $init_hooks_dir
-  if [ $? -ne 0 ]; then
-		echo  "$SCRIPT_NAME: Aborting sandbox user config initialization- failed to create directory '$init_hooks_dir'"
-		exit 1
-	fi
-
-  shell_login_hooks_dir=${hooks_dir}/shell-login
-  echo "$SCRIPT_NAME: Creating dir : ${shell_login_hooks_dir}/"
-  mkdir -p $shell_login_hooks_dir
-  if [ $? -ne 0 ]; then
-		echo  "$SCRIPT_NAME: Aborting sandbox user config initialization- failed to create directory '$shell_login_hooks_dir'"
-		exit 1
-	fi
-
-  hook_init_script_path=$init_hooks_dir/init.sh
-  echo "$SCRIPT_NAME: Creating file: ${hook_init_script_path}"
-  cat <<EOF > $hook_init_script_path
-#! /bin/bash
-
-SCRIPT_DIR=\$(readlink -f \$(dirname \$0))
-SCRIPT_NAME=\$(basename \$0)
-
-MODULE_DIR=\$(readlink -f \$SCRIPT_DIR/../..)
-MODULE_NAME=\$(basename \$MODULE_DIR)
-MODULE_HOOK=\$(basename \$SCRIPT_NAME ".sh")
-
-ARTIFACTS_DIR=\$MODULE_DIR/artifacts
-
-SCRIPT_MSG_PREFIX="[module=\$MODULE_NAME hook=\$MODULE_HOOK]"
-
-echo "\$SCRIPT_MSG_PREFIX: Initializing"
-
-echo "\$SCRIPT_MSG_PREFIX: Initialization complete"
-
-exit 0
-EOF
-  if [ $? -ne 0 ]; then
-		echo  "$SCRIPT_NAME: Aborting sandbox user config initialization- failed to create file '$hook_init_script_path'"
-		exit 1
-	fi
-
-  chmod 755 $hook_init_script_path
-  if [ $? -ne 0 ]; then
-		echo  "$SCRIPT_NAME: Error: Aborting sandbox user config initialization- failed to set execute permissions on file '$hook_init_script_path'"
-		exit 1
-	fi
   
-
-  hook_shell_login_script_path=$shell_login_hooks_dir/login.sh
-  echo "$SCRIPT_NAME: Creating file: ${hook_shell_login_script_path}"
-  cat <<EOF > $hook_shell_login_script_path
-#! /bin/bash
-
-SCRIPT_DIR=\$(readlink -f \$(dirname \$0))
-SCRIPT_NAME=\$(basename \$0)
-
-MODULE_DIR=\$(readlink -f \$SCRIPT_DIR/../..)
-MODULE_NAME=\$(basename \$MODULE_DIR)
-MODULE_HOOK=\$(basename \$SCRIPT_NAME ".sh")
-
-ARTIFACTS_DIR=\$MODULE_DIR/artifacts
-
-SCRIPT_MSG_PREFIX="[module=\$MODULE_NAME hook=\$MODULE_HOOK]"
-
-exit 0
-EOF
-  if [ $? -ne 0 ]; then
-		echo  "$SCRIPT_NAME: Aborting sandbox user config initialization- failed to create file '$hook_shell_login_script_path'"
+  sb_install_root=$SCRIPT_DIR/..
+	user_init_template_root=$sb_install_root/templates/user/user-init
+	if [ ! -d "$user_init_template_root" ]; then
+		echo "$SCRIPT_NAME: Error: Unable to create new sandbox user configuration- templates directory '${user_init_template_root}' does not exist"
 		exit 1
 	fi
 
-  chmod 755 $hook_shell_login_script_path
+  echo "$SCRIPT_NAME: Copying template files"
+  cp -r $user_init_template_root/* "$user_sb_env_root"
   if [ $? -ne 0 ]; then
-		echo  "$SCRIPT_NAME: Error: Aborting sandbox user config initialization- failed to set execute permissions on file '$hook_shell_login_script_path'"
-		exit 1
-	fi
+    echo  "$SCRIPT_NAME: Aborting sandbox user config initialization- template file copy failed"
+    exit 1
+  fi
+
+  token_map="__USER_ENV_ROOT__=$user_sb_env_root"
+  
+  #add another mapping
+  #token_map+=$'\\n'
+  #token_map+="__SOME_OTHER_TOKEN=some_other_value"
+
+  token_replacement_sed_script=$(echo "$token_map" | sed -r 's/^\s*(\S*)\s*=\s*(.*\S)\s*$/s@\1@\2@g/')
+  if [ $? -ne 0 ]; then
+    echo  "$SCRIPT_NAME: Aborting sandbox user config initialization- token replacement script generation failed"
+    exit 1
+  fi
+
+  echo "$SCRIPT_NAME: Applying post-copy updates: user.env"
+  user_env_path=$user_sb_env_root/user.env
+  sed -i "$token_replacement_sed_script" "$user_env_path"
+    if [ $? -ne 0 ]; then
+    echo  "$SCRIPT_NAME: Aborting sandbox user config initialization- token replacement script execution failed"
+    exit 1
+  fi
 
   echo ""
   echo "$SCRIPT_NAME: Initialization complete"

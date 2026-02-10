@@ -26,7 +26,6 @@ RUN DEBIAN_FRONTEND=noninteractive apt-get update && apt-get upgrade -y && apt-g
     dnsutils \    
     net-tools \
     jq \
-    yq \
     less \
     nano \
     nftables \
@@ -88,7 +87,7 @@ RUN . /sandbox/user/sb-login.env && chown $SB_LOGIN_USER_NAME:$SB_LOGIN_GROUP_NA
 ########## SDK / Dev Tools and Dependencies Install
 
 #yq
-RUN wget https://github.com/mikefarah/yq/releases/download/v4.2.0/yq_linux_amd64 -O /usr/local/bin/yq \
+RUN wget https://github.com/mikefarah/yq/releases/download/v4.52.2/yq_linux_amd64 -O /usr/local/bin/yq \
     && chmod +x /usr/local/bin/yq
 
 # gcloud SDK

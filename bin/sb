@@ -259,12 +259,63 @@ check_sync_dependencies() {
   return $missing
 }
 
+resolve_tokens()
+{
+	local input_string="$1"
+	local token_map="$2"
+
+  if [[ -z "$input_string" || -z "token_map" ]]; then
+    echo -n "$input_string"
+    return 0
+  fi
+
+	local result="$input_string"
+
+  # Extract all __ENV__ tokens from the input string
+  local tokens
+  tokens=$(echo "$input_string" | grep -oE '__ENV__[A-Za-z_][A-Za-z0-9_]*')
+
+  if [ -z "$tokens" ]; then
+    echo -n "$result"
+    return 0
+  fi
+
+	sed_script=$(sed -r 's/^\s*\S*)\s(.*)/s@\1@\2@g/' "$MAPPING_FILE")
+
+  local token
+  for token in $tokens; do
+    # Strip __ENV__ prefix to get variable name
+    local var_name="${token#__ENV__}"
+
+    # Look up VARNAME=value in the .env file
+    local line
+    line=$(grep -E "^${var_name}=" "$env_file" | head -n 1)
+
+    if [ -z "$line" ]; then
+      echo "$SCRIPT_NAME: Error- variable '$var_name' (referenced as '$token') not found in '$env_file'" >&2
+      return 1
+    fi
+
+    # Extract value (strip VAR_NAME= prefix, then strip surrounding double quotes if present)
+    local value="${line#*=}"
+    value="${value#\"}"
+    value="${value%\"}"
+
+    # Replace the token with the value
+    result="${result//$token/$value}"
+  done
+
+  echo -n "$result"
+  return 0
+
+}
+
 resolve_sandbox_env_tokens() {
   local input_string="$1"
   local env_file="$2"
 
   if [ -z "$input_string" ]; then
-    echo -n ""
+    echo -n "$input_string"
     return 0
   fi
 
@@ -850,7 +901,7 @@ sync_files() {
     return 1
   fi
 
-  # Get number of sync specs to process
+  # Get the number of sync specs to process
   local spec_count
   spec_count=$(yq '.sync.spec | length' "$sync_file")
   if [ $? -ne 0 ]; then
@@ -874,6 +925,9 @@ sync_files() {
   for (( i=0; i<spec_count; i++ )); do
 
     echo "$SCRIPT_NAME: Processing sync spec [$i] from '$sync_file'"
+
+		local sync_filename="$(basename $sync_file)"
+		local sync_spec_source="${sync_filename%.*}" #strip extension
 
     # Parse sandbox path
     local raw_sandbox_path
@@ -949,18 +1003,19 @@ sync_files() {
       rsync_args+=("--exclude=$exc")
     done
 
-    # # If includes were specified, add catch-all exclude
-    # if [ ${#includes[@]} -gt 0 ]; then
-    #   rsync_args+=("--exclude=*")
-    # fi
+    # If includes were specified, add catch-all exclude
+    if [ ${#includes[@]} -gt 0 ]; then
+      rsync_args+=("--exclude=/**")
+    fi
 
     # Add source paths and destination
     rsync_args+=("$host_path" "$temp_dir/")
 
     # Execute rsync
-    local rsync_log="$__sandbox_root/logs/sync-rsync-${timestamp}-spec${i}.log"
+    local rsync_log="$__sandbox_root/logs/sync-${timestamp}-${sync_spec_source}-rsync-spec-${i}.log"
     echo "$SCRIPT_NAME: [$sync_file_basename] Staging files for sync- running rsync for spec [$i]"
-    rsync "${rsync_args[@]}" > "$rsync_log" 2>&1
+    echo -e "rsync ${rsync_args[@]}\n" > $rsync_log
+		rsync "${rsync_args[@]}" >> "$rsync_log" 2>&1
     local rsync_rc=$?
     if [ $rsync_rc -ne 0 ]; then
       echo "$SCRIPT_NAME: Error- sync spec [$i]: rsync failed (exit code $rsync_rc). Log: $rsync_log"
@@ -979,9 +1034,10 @@ sync_files() {
     fi
 
     # Execute docker compose cp
-    local compose_cp_log="$__sandbox_root/logs/sync-compose-cp-${timestamp}-spec${i}.log"
+    local compose_cp_log="$__sandbox_root/logs/sync-${timestamp}-${sync_spec_source}-compose-cp-spec-${i}.log"
     echo "$SCRIPT_NAME: [$sync_file_basename] Copying $file_count staged file(s) to sandbox path '${sandbox_path}'"
-    docker compose -f "$__compose_file" cp "$temp_dir/." "${__compose_service}:${sandbox_path}" > "$compose_cp_log" 2>&1
+		echo -e "docker compose -f $__compose_file cp $temp_dir/. ${__compose_service}:${sandbox_path}\n" > $rsync_log
+    docker compose -f "$__compose_file" cp "$temp_dir/." "${__compose_service}:${sandbox_path}" >> "$compose_cp_log" 2>&1
     local cp_rc=$?
     if [ $cp_rc -ne 0 ]; then
       echo "$SCRIPT_NAME: Error- sync spec [$i]: docker compose cp failed (exit code $cp_rc)"
@@ -1080,9 +1136,10 @@ sandbox_sync() {
 	# Sync user files (if user-sync.yml exists)
 	if [ -n "$__user_env_root" ] && [ -f "$__user_env_root/user-sync.yml" ]; then
 		echo ""
-		echo "$SCRIPT_NAME: [User] Syncing files specified in '$__user_env_root/user-sync.yml'"
+		echo "$SCRIPT_NAME: Syncing files specified in '$__user_env_root/user-sync.yml'"
 		sync_files "$__user_env_root/user-sync.yml"
 		if [ $? -ne 0 ]; then
+			echo ""
 			echo "$SCRIPT_NAME: Warning- user file sync encountered errors"
 		fi
 	fi
@@ -1319,8 +1376,16 @@ sync_env() {
 
 	echo ""
 
+	local compose_
+	local compose_env_backup_dir=${__sandbox_root}/backup/dot-env}
+
+	mkdir -p $compose_env_backup_dir
+	if [ $? -ne 0 ]; then
+		echo "$SCRIPT_NAME: Creation of .env backup dir '$compose_env_backup_dir' failed"
+		exit 1
+	fi
 	if [ -f "$__compose_env_path" ]; then
-		compose_env_backup_path="${__compose_env_path}.bak"
+		compose_env_backup_path="${compose_env_backup_dir}/dot-env-$(date +%Y_%m_%d_%H_%M_%S)"
 		echo "$SCRIPT_NAME: Backing up sandbox Docker Compose .env : '$__compose_env_path'  -->  '$compose_env_backup_path'"
 		echo ""
 		cp -f $__compose_env_path $compose_env_backup_path
@@ -1337,7 +1402,7 @@ sync_env() {
 	env=()
 	lines=()	
 
-	#source sb-project.env to get SB_PROJECT_PREFIX/SB_PROJECT_ID/SB_PROJECT_TZ
+	#source sb-project.env to get SB_PROJECT_PREFIX
 	source $__project_root/sb-project.env
 
 	#project env
