@@ -31,7 +31,7 @@ if [ -d $modules_root ]; then
 
         if grep -q -E -i '^(true)|(1)$' <<< "${SB_HOOK_DEBUG_ENABLED}"; then
           echo ""
-          echo "$SCRIPT_NAME: Module [$mod] $shell_login_hook_script generated commands:\n$login_cmds"
+          echo -e "$SCRIPT_NAME: Module [$mod] $shell_login_hook_script generated commands:\n$login_cmds"
           echo ""
         fi
 

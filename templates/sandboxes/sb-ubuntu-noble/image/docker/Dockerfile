@@ -75,7 +75,7 @@ RUN chmod u-s /usr/bin/mount /usr/bin/umount /usr/bin/chsh \
     /usr/bin/chfn /usr/bin/gpasswd /usr/bin/newgrp /usr/bin/passwd
 
 #mount point dirs
-RUN mkdir -p /sandbox/modules /sandbox/hooks /sandbox/user /sandbox/user-secrets
+RUN mkdir -p /sandbox/modules /sandbox/hooks /sandbox/user /sandbox/user-secrets/.ssh /sandbox/user-secrets/.nuget/NuGet
 RUN . /sandbox/build/sb-login.env \
     && chown -R $SB_LOGIN_USER_NAME:$SB_LOGIN_GROUP_NAME /sandbox
 

@@ -8,6 +8,8 @@ if [ ! -d "$HOME/.claude" ]; then
   echo "$SCRIPT_NAME: Creating symlink: $HOME/.claude --> /sandbox/user/.claude (volume mount)"
   mkdir -p /sandbox/user/.claude
   ln -s /sandbox/user/.claude "$HOME/.claude"
+else
+  echo "$SCRIPT_NAME: Skipping Creation of symlink $HOME/.claude --> /sandbox/user/.claude ($HOME/.claude exists)"
 fi
 
 #create empty json  and symlink for $HOME/.claude.json
@@ -17,7 +19,7 @@ if [ ! -f "$HOME/.claude.json" ]; then
   if [ ! -f /sandbox/user/.claude.json ]; then
 
     # If a CLAUDE OAUTH token or API Key is in the environment initialize claude.json to bypass prompting the user for authentication on initial claude execution
-    if [[ -n "$CLAUDE_CODE_OAUTH_TOKEN" || -n "$ANTHROPIC_API_KEY" ]]; then
+    if [[ -n "$CLAUDE_CODE_OAUTH_TOKEN" || -n "$ANTHROPIC_API_KEY" || -n "$CLAUDE_CODE_USE_VERTEX" || -n "$ANTHROPIC_VERTEX_PROJECT_ID" ]]; then
       echo "$SCRIPT_NAME: Initializing .claude.json: '{\"hasCompletedOnboarding\": true}'"
       echo '{"hasCompletedOnboarding": true}' > /sandbox/user/.claude.json
     else
@@ -29,7 +31,11 @@ if [ ! -f "$HOME/.claude.json" ]; then
     #create the symlink
     echo "$SCRIPT_NAME: Creating symlink: $HOME/.claude.json --> /sandbox/user/.claude (volume mount)"
     ln -s /sandbox/user/.claude.json "$HOME/.claude.json"
+  else
+    echo "$SCRIPT_NAME: Skipping initialization of $HOME/.claude.json - /sandbox/user/.claude.json exists"  
   fi
+else
+  echo "$SCRIPT_NAME: Skipping initialization of $HOME/.claude.json - $HOME/.claude.json exists"
 fi
 
 
