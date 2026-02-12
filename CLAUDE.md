@@ -37,7 +37,9 @@ sb-templates init                # Initialize configuration for Docker images re
 
 ### Building Docker Images
 ```bash
-./templates/sandboxes/sb-ubuntu-noble/image/build.sh  # Build Ubuntu Noble image
+./templates/sandboxes/sb-ubuntu-noble/image/build.sh                # Build Ubuntu Noble image
+./templates/sandboxes/sb-ubuntu-noble-fw/image/build.sh             # Build Ubuntu Noble with firewall
+./templates/sandboxes/sb-ubuntu-noble-fw-opensnitch/image/build.sh  # Build Ubuntu Noble with OpenSnitch firewall
 ```
 
 ## Architecture
@@ -51,14 +53,19 @@ ai-agents-sandboxes/
 │   ├── sb-system.env             # System defaults
 │   └── sb-templates.env          # Template password hashes
 ├── templates/sandboxes/          # Sandbox templates
-│   └── sb-ubuntu-noble/          # Default Ubuntu 24.04 template
+│   ├── sb-ubuntu-noble/          # Default Ubuntu 24.04 template
+│   ├── sb-ubuntu-noble-fw/       # Ubuntu Noble with firewall
+│   └── sb-ubuntu-noble-fw-opensnitch/  # Ubuntu Noble with OpenSnitch firewall
 │       ├── image/                # Docker image (Dockerfile, scripts)
-│       ├── artifacts/            # Files copied to sandbox
+│       ├── artifacts-host/       # Files copied to sandbox host directory
+│       ├── artifacts-sandbox/    # Files copied to sandbox container volumes
 │       └── hooks/                # Lifecycle hooks (create/, sync/)
 ├── modules/                      # System-wide modules
 │   └── system-example/           # Example module template
-├── docs/                         # Documentation & planning
-└── test-projects/                # Example test project
+├── tests/                        # Test suites (BATS)
+│   ├── images/                   # Docker image tests
+│   └── sync/                     # Sync functionality unit tests
+└── docs/                         # Documentation & planning
 ```
 
 ### Configuration Hierarchy (lowest to highest priority)
@@ -91,12 +98,13 @@ ai-agents-sandboxes/
 
 ### Template Structure (`templates/sandboxes/<template-id>/`)
 - `image/docker/` - Dockerfile and container scripts (entrypoint.sh, SDK installers)
-- `artifacts/` - Files copied to sandbox (docker-compose.yml, volumes/, modules/)
-  - `volumes/sb-hooks/` - Container lifecycle hooks:
-    - `init/` - Container init scripts (init.sh, ssh-init.sh, nuget-init.sh, nvm-init.sh, claude-init.sh, modules-init.sh)
-    - `shell-login/` - Shell login scripts (run-module-hooks.sh)
+- `artifacts-host/` - Files copied to sandbox host directory (docker-compose.yml, env files, modules/)
   - `modules/example/` - Example module with init and shell-login hooks
-- `hooks/create/` - Lifecycle hooks: pre-copy.sh, copy.sh (required), post-copy.sh, build.sh (required)
+- `artifacts-sandbox/` - Files copied to sandbox container volumes
+  - `sandbox/hooks/` - Container lifecycle hooks:
+    - `init/` - Container init scripts (init.sh, ssh-init.sh, nuget-init.sh, nvm-init.sh, claude-init.sh, modules-init.sh)
+    - `shell-login/` - Shell login scripts (shell-login.sh)
+- `hooks/create/` - Lifecycle hooks: pre-copy.sh, copy-host.sh (required), post-copy.sh, post-container-create.sh, build.sh (required)
 - `hooks/sync/` - Configuration sync hooks (sync.sh)
 
 ### Module System
@@ -157,6 +165,20 @@ Docker Compose includes these via the `include:` directive.
    - `claude-init.sh` - Setup Claude AI
    - `modules-init.sh` - Initialize modules (executes each module's `hooks/init/init.sh`)
 3. Container runs `sleep infinity` to remain running
+
+## Testing
+
+Uses [BATS](https://github.com/bats-core/bats-core) (Bash Automated Testing System). Requires `bats` to be installed on the host.
+
+```bash
+# Sync unit tests
+./tests/sync/unit/run-tests.sh                    # Run all sync tests
+./tests/sync/unit/run-tests.sh <test-file.bats>   # Run specific test file
+
+# Image tests (builds image, starts container, runs tests inside it)
+./tests/images/sb-ubuntu-noble-fw/run-tests.sh             # Full run (builds image first)
+./tests/images/sb-ubuntu-noble-fw/run-tests.sh --skip-build # Skip image build
+```
 
 ## Code Conventions
 
