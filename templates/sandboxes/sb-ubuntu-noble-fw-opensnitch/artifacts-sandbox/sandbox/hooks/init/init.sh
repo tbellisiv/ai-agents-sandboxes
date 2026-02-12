@@ -25,7 +25,6 @@ claude_init_status=$?
 $SCRIPT_DIR/modules-init.sh
 module_init=$?
 
-
 echo ""
 if [ $nuget_init -ne 0 ]; then
   init_status=1
@@ -53,7 +52,6 @@ if [ $claude_init_status -ne 0 ]; then
   echo ""
 fi
 
-
 if [ $init_status -ne 0 ]; then
   echo "$SCRIPT_NAME: Sandbox initialization completed with error(s)"
   echo ""
@@ -67,3 +65,5 @@ fi
 echo ""
 echo "sleep infinity"
 exec sleep infinity
+
+

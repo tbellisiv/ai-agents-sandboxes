@@ -1,0 +1,108 @@
+include:
+    - ./user-compose-include.yml
+    - $SB_PROJECT_ROOT/sb-project-compose-include.yml
+    - $SB_USER_ENV_ROOT/user-compose-include.yml
+
+services:
+    sandbox:
+        container_name: "${COMPOSE_PROJECT_NAME}"
+        image: ${SB_SANDBOX_IMAGE:?This is likely a misconfiguration issue.}
+        user: "${SB_LOGIN_USER_ID:?This is likely a misconfiguration issue.}:${SB_LOGIN_GROUP_ID:?This is likely a misconfiguration issue.}"
+        command: /sandbox/hooks/init/init.sh
+        working_dir: ${SB_SANDBOX_WORKSPACE_MAIN_ROOT}
+        hostname: ${COMPOSE_PROJECT_NAME}
+        # cap_drop:
+        #     - ALL
+        # cap_add:
+        #     # firewall:
+        #     - NET_ADMIN
+        #     - NET_RAW
+        #     # sudo/root:
+        #     - SETUID
+        #     - SETGID
+        #     - DAC_OVERRIDE
+        #     - CHOWN
+        pids_limit: 500 # prevent fork bombs
+        mem_limit: 8G
+        ipc: private # isolate IPC namespace
+        tmpfs:
+            - /tmp:size=1G # ephemeral /tmp
+        ulimits:
+            nofile:
+                soft: 65536
+                hard: 65536
+        environment:
+            - TZ=${SB_SANDBOX_TZ}
+            - NODE_OPTIONS=--max-old-space-size=4096
+            - SB_PROJECT_ID=${SB_PROJECT_ID:?This is likely a misconfiguration issue.}
+            - SB_SANDBOX_ID=${SB_SANDBOX_ID:?This is likely a misconfiguration issue.}            
+            - SB_SANDBOX_WORKSPACE_MAIN_ROOT=${SB_SANDBOX_WORKSPACE_MAIN_ROOT:?This is likely a misconfiguration issue.}
+
+        env_file:
+
+            - path: ${SB_PROJECT_ROOT}/sb-project.env
+              required: true        
+
+            - path: ${SB_SANDBOX_ROOT}/sb-sandbox.env
+              required: true
+
+            - path: ${SB_SANDBOX_ROOT}/sb-login.env
+              required: true
+
+            - path: ${SB_SANDBOX_ROOT}/user.env
+              required: false
+              
+            - path: ${SB_SANDBOX_ROOT}/user-secrets.env
+              required: false              
+
+            - path: ${SB_USER_ENV_ROOT}/user.env
+              required: false
+
+            - path: ${SB_USER_ENV_ROOT}/user-secrets.env
+              required: false
+
+        volumes:
+            # workspace files
+            - workspace_main:${SB_SANDBOX_WORKSPACE_MAIN_ROOT}:delegated
+
+            #create "shadow" mount to an empty directory to hide the SB project files
+            - workspace_sb_shadow:${SB_SANDBOX_WORKSPACE_MAIN_ROOT}/.sb
+
+            #sandbox modules
+            - modules:${SB_SANDBOX_MODULES_ROOT}
+
+            #sandbox hooks
+            - hooks:${SB_SANDBOX_HOOKS_ROOT}
+
+            #user non-confidential
+            - user:${SB_SANDBOX_USER_ROOT}
+
+            #user confidential
+            - user_secrets:${SB_SANDBOX_USER_SECRETS_ROOT}
+
+            # TIME/TZ
+            - /etc/localtime:/etc/localtime:ro
+            - /etc/timezone:/etc/timezone:ro
+                 
+volumes:
+
+    workspace_main:
+        driver: local
+        driver_opts:
+            type: none
+            device: ${SB_PROJECT_WORKSPACE_MAIN_ROOT}
+            o: bind
+        
+    workspace_sb_shadow:
+     
+    modules:
+       
+    hooks:
+      
+    user:
+
+    user_secrets:
+       
+
+
+
