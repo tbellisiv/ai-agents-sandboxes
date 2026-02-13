@@ -21,28 +21,8 @@ fi
 
 new_sandbox_path=$1
 
-# Execute parent hook first (copies all base artifacts)
-echo "${SCRIPT_MSG_PREFIX}: Copying parent template artifacts - sandbox"
-parent_hook="$PARENT_TEMPLATE_DIR/hooks/$TEMPLATE_OPERATION/$SCRIPT_NAME"
-if [ -f "$parent_hook" ]; then
-  echo "${SCRIPT_MSG_PREFIX}: Executing parent hook"
-  $parent_hook "$new_sandbox_path"
-  if [ $? -ne 0 ]; then
-    echo "${SCRIPT_MSG_PREFIX}: Error- parent hook failed"
-    exit 1
-  fi
-fi
 
-# Overlay this template's artifacts over the parent template's artifacts
-echo "${SCRIPT_MSG_PREFIX}: Copying template artifacts - sandbox"
-
-template_artifacts_path=$TEMPLATE_DIR/artifacts-sandbox
-if [ ! -d "${template_artifacts_path}" ]; then
-  echo "${SCRIPT_MSG_PREFIX}: Error: Template artifacts directory '$template_artifacts_path' does not exist"
-  exit 1
-fi
-
-# Copy this template's sandbox artifacts into the running container (overlay parent's artifacts)
+# Read the compose.env file so we can get $SB_COMPOSE_SERVICE to execute 'docker compose cp' commands
 new_sandbox_compose_env_path=$new_sandbox_path/sb-compose.env
 if [ ! -f "$new_sandbox_compose_env_path" ]; then
   echo "${SCRIPT_MSG_PREFIX}: Error: Sandbox env file '$new_sandbox_compose_env_path' does not exist"
@@ -58,6 +38,35 @@ fi
 compose_file_path=$new_sandbox_path/docker-compose.yml
 if [ ! -f "${compose_file_path}" ]; then
   echo "${SCRIPT_MSG_PREFIX}: Error: Docker compose file '$compose_file_path' does not exist"
+  exit 1
+fi
+
+
+# Copy the parent template's sandbox artifacts into the running container (overlay parent's artifacts)
+
+echo "${SCRIPT_MSG_PREFIX}: Copying parent template artifacts - sandbox"
+
+parent_template_artifacts_path=$PARENT_TEMPLATE_DIR/artifacts-sandbox
+if [ ! -d "${parent_template_artifacts_path}" ]; then
+  echo "${SCRIPT_MSG_PREFIX}: Error: Template artifacts directory '$parent_template_artifacts_path' does not exist"
+  exit 1
+fi
+
+echo "${SCRIPT_MSG_PREFIX}: Copying parent template sandbox container artifacts: ${parent_template_artifacts_path}/* --> ${SB_COMPOSE_SERVICE}:/"
+echo "docker compose -f $compose_file_path cp $parent_template_artifacts_path/. ${SB_COMPOSE_SERVICE}:/"
+docker compose -f $compose_file_path cp $parent_template_artifacts_path/. ${SB_COMPOSE_SERVICE}:/
+if [ $? -ne 0 ]; then
+  echo "${SCRIPT_MSG_PREFIX}: Error: Docker compose file copy failed"
+  exit 1
+fi
+
+# Copy this template's sandbox artifacts into the running container (overlay the parent's artifacts)
+
+echo "${SCRIPT_MSG_PREFIX}: Copying template artifacts - sandbox"
+
+template_artifacts_path=$TEMPLATE_DIR/artifacts-sandbox
+if [ ! -d "${template_artifacts_path}" ]; then
+  echo "${SCRIPT_MSG_PREFIX}: Error: Template artifacts directory '$template_artifacts_path' does not exist"
   exit 1
 fi
 
