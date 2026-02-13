@@ -1876,6 +1876,12 @@ sandbox_new() {
     fi
   fi
 
+  if [ -n "$sandbox" ]; then
+    sandbox_id_specified=0 # true
+  else
+    sandbox_id_specified=-1 # non-zero == false
+  fi
+
   sb_install_root=$SCRIPT_DIR/..
 
   sb_env_root=$sb_install_root/env
@@ -1934,7 +1940,7 @@ sandbox_new() {
   if [ -z "$sandbox" ]; then
     sandbox=$(get_default_sandbox_id $project_path_abs)
     if [ -z "$sandbox" ]; then
-      echo "$SCRIPT_NAME: Unable to start shell session- sandbox ID is not specified on the command-line and no default sandbox ID is configured"
+      echo "$SCRIPT_NAME: Unable to create sandbox- sandbox ID is not specified on the command-line and no default sandbox ID is configured"
       exit 1
     fi
   fi
@@ -2134,21 +2140,38 @@ sandbox_new() {
     exit 1
   fi
 
+  echo ""
+  echo "sandbox_id_specified=$sandbox_id_specified"
+
+  if [ "$sandbox_id_specified" != "0" ]; then
+
+    sandbox_id_help_str=""  #no need to specify since the default sandbox ID was used
+
+    create_extra_sandboxes_cmd=$(cat <<'EOF'
+
+4. Create a sandbox with a specific ID. Run:
+
+  'sb new <sandbox-id>'
+EOF
+) 
+  else
+    sandbox_id_help_str=" ${sandbox}"  # Since the user specified a sandbox ID on the commandline, include in the commands in the help text below
+    create_extra_sandboxes_cmd=""      # Since the user knows to create sandboxes with a speciic ID, no need to display help text on how to do that
+  fi
+
   cat <<EOF
 
-Sandbox creation complete.
-
-Created sandbox '$sandbox' at '$sandbox_dest_path'
+Created sandbox '$sandbox' from template '$template' at '$sandbox_dest_path'
 
 Next Steps:
 
 1. Start the sandbox. Run:
 
-  'sb up' 
+  'sb${sandbox_id_help_str} up' 
 
   or:
 
-  'sb start' 
+  'sb${sandbox_id_help_str} start' 
 
   or:		
 
@@ -2156,45 +2179,18 @@ Next Steps:
 
 2. Verify the started sandbox has completed the initialization process. Run:
 
-  sb logs -f
+  'sb${sandbox_id_help_str} logs -f'
 
 3. Start a terminal session. Run:
 
-  'sb shell'
+  'sb${sandbox_id_help_str} shell'
 
   or:
 
   'cd $sandbox_dest_path && docker compose exec ${SB_COMPOSE_SERVICE} ${SB_SANDBOX_SHELL}'
+$create_extra_sandboxes_cmd  
 
-Other common tasks:
-
-  - Gracefully stop the sandbox (preserves state). Run:
-
-    'sb stop' 
-
-  - Forcefully stop the sandbox (preserves state). Run:
-
-    'sb kill' 		
-
-  - Pause a sandbox. Run:
-
-    'sb pause'
-
-  - Resume a paused sandbox. Run:
-
-    'sb unpause'		
-
-  - Teardown the sandbox image and volumes. Run:
-
-    'sb down'
-
-  - Check statues of sandboxes in the project. Run :
-
-    'sb ps'
-
-  - Teardown the sandbox image, volumes and configuration files. Run:
-
-    'sb rm'
+Run 'sb --help' to list available commands
 
 EOF
 
