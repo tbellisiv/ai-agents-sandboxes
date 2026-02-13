@@ -1338,7 +1338,7 @@ sandbox_sync() {
   echo "$SCRIPT_NAME: Rebuilding sandbox"
   echo ""
   
-  echo "$SCRIPT_NAME: Running: docker compose -f $__compose_file down --remove-orphans -v -t 300"
+  echo "$SCRIPT_NAME: Running: docker compose -f $__compose_file down --remove-orphans -v -t 30"
   docker compose -f $__compose_file down
   if [ $? -ne 0 ]; then
     echo "$SCRIPT_NAME: Sandbox rebuild failed- unable to stop running container"
