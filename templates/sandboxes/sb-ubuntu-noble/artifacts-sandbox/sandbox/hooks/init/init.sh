@@ -13,6 +13,10 @@ ssh_init=$?
 $SCRIPT_DIR/nuget-init.sh
 nuget_init=$?
 
+# ----- Init: dotnet tools ------
+$SCRIPT_DIR/dotnet-tools-init.sh
+dotnet_tools_init=$?
+
 # ----- Init: nvm/node ------
 $SCRIPT_DIR/nvm-init.sh
 nvm_init_status=$?
@@ -29,6 +33,11 @@ echo ""
 if [ $nuget_init -ne 0 ]; then
   init_status=1
   echo "$SCRIPT_NAME: Warning- NuGet initialization failed"
+  echo ""
+fi
+if [ $dotnet_tools_init -ne 0 ]; then
+  init_status=1
+  echo "$SCRIPT_NAME: Warning- dotnet tools initialization failed"
   echo ""
 fi
 if [ $ssh_init -ne 0 ]; then
