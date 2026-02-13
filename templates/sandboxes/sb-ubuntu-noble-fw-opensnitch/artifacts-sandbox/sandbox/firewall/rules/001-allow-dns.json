@@ -1,0 +1,35 @@
+{
+    "created": "2025-01-01T00:00:00Z",
+    "updated": "2025-01-01T00:00:00Z",
+    "name": "001-allow-dns-cloudflare",
+    "enabled": true,
+    "precedence": true,
+    "action": "allow",
+    "duration": "always",
+    "operator": {
+        "type": "list",
+        "operand": "list",
+        "sensitive": false,
+        "data": "",
+        "list": [
+            {
+                "type": "simple",
+                "operand": "dest.ip",
+                "sensitive": false,
+                "data": "1.1.1.1"
+            },
+            {
+                "type": "simple",
+                "operand": "dest.ip",
+                "sensitive": false,
+                "data": "1.0.0.1"
+            },
+            {
+                "type": "regexp",
+                "operand": "dest.ip",
+                "sensitive": false,
+                "data": "^127\\."
+            }
+        ]
+    }
+}

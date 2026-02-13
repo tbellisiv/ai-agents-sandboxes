@@ -25,6 +25,10 @@ claude_init_status=$?
 $SCRIPT_DIR/modules-init.sh
 module_init=$?
 
+# ----- Init: Firewall (OpenSnitch) ------
+sudo /usr/local/bin/firewall-init.sh
+firewall_init=$?
+
 echo ""
 if [ $nuget_init -ne 0 ]; then
   init_status=1
@@ -49,6 +53,11 @@ fi
 if [ $claude_init_status -ne 0 ]; then
   init_status=1
   echo "$SCRIPT_NAME: Warning- Claude initialization failed"
+  echo ""
+fi
+if [ $firewall_init -ne 0 ]; then
+  init_status=1
+  echo "$SCRIPT_NAME: Warning- Firewall initialization failed"
   echo ""
 fi
 

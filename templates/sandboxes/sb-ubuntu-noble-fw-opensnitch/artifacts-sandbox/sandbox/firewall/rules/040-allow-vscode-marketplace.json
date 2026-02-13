@@ -1,0 +1,15 @@
+{
+    "created": "2025-01-01T00:00:00Z",
+    "updated": "2025-01-01T00:00:00Z",
+    "name": "040-allow-vscode-marketplace",
+    "enabled": true,
+    "precedence": false,
+    "action": "allow",
+    "duration": "always",
+    "operator": {
+        "type": "regexp",
+        "operand": "dest.host",
+        "sensitive": false,
+        "data": "^(marketplace\\.visualstudio\\.com|update\\.code\\.visualstudio\\.com|.*\\.gallery\\.vsassets\\.io|.*\\.gallerycdn\\.vsassets\\.io|.*\\.vo\\.msecnd\\.net|.*\\.blob\\.core\\.windows\\.net|.*\\.vscode-cdn\\.net|.*\\.vscode-unpkg\\.net)$"
+    }
+}

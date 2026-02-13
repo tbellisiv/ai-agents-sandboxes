@@ -11,17 +11,17 @@ services:
         command: /sandbox/hooks/init/init.sh
         working_dir: ${SB_SANDBOX_WORKSPACE_MAIN_ROOT}
         hostname: ${COMPOSE_PROJECT_NAME}
-        # cap_drop:
-        #     - ALL
-        # cap_add:
-        #     # firewall:
-        #     - NET_ADMIN
-        #     - NET_RAW
-        #     # sudo/root:
-        #     - SETUID
-        #     - SETGID
-        #     - DAC_OVERRIDE
-        #     - CHOWN
+        cap_drop:
+            - ALL
+        cap_add:
+            # firewall:
+            - NET_ADMIN
+            - NET_RAW
+            # sudo/root:
+            - SETUID
+            - SETGID
+            - DAC_OVERRIDE
+            - CHOWN
         pids_limit: 500 # prevent fork bombs
         mem_limit: 8G
         ipc: private # isolate IPC namespace
@@ -31,7 +31,14 @@ services:
             nofile:
                 soft: 65536
                 hard: 65536
+        healthcheck:
+            test: ['CMD', 'pgrep', '-x', 'opensnitchd']
+            interval: 60s
+            timeout: 10s
+            retries: 3
+            start_period: 30s
         environment:
+            - FIREWALL_ENABLED=true
             - TZ=${SB_SANDBOX_TZ}
             - NODE_OPTIONS=--max-old-space-size=4096
             - SB_PROJECT_ID=${SB_PROJECT_ID:?This is likely a misconfiguration issue.}
@@ -80,6 +87,9 @@ services:
             #user confidential
             - user_secrets:${SB_SANDBOX_USER_SECRETS_ROOT}
 
+            #firewall config, rules, and logs
+            - firewall:${SB_SANDBOX_FIREWALL_ROOT}
+
             # TIME/TZ
             - /etc/localtime:/etc/localtime:ro
             - /etc/timezone:/etc/timezone:ro
@@ -102,7 +112,9 @@ volumes:
     user:
 
     user_secrets:
-       
+
+    firewall:
+
 
 
 

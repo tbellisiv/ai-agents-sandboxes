@@ -42,7 +42,31 @@ if [ ! -d "${template_artifacts_path}" ]; then
   exit 1
 fi
 
-#There are no artifacts to overlay currently
-#cp -r -f $template_artifacts_path/* $new_sandbox_path
+# Copy this template's sandbox artifacts into the running container (overlay parent's artifacts)
+new_sandbox_compose_env_path=$new_sandbox_path/sb-compose.env
+if [ ! -f "$new_sandbox_compose_env_path" ]; then
+  echo "${SCRIPT_MSG_PREFIX}: Error: Sandbox env file '$new_sandbox_compose_env_path' does not exist"
+  exit 1
+fi
+
+source $new_sandbox_compose_env_path
+if [ -z "${SB_COMPOSE_SERVICE}" ]; then
+  echo "${SCRIPT_MSG_PREFIX}: Error: Variable 'SB_COMPOSE_SERVICE' is not defined in file '$new_sandbox_compose_env_path'"
+  exit 1
+fi
+
+compose_file_path=$new_sandbox_path/docker-compose.yml
+if [ ! -f "${compose_file_path}" ]; then
+  echo "${SCRIPT_MSG_PREFIX}: Error: Docker compose file '$compose_file_path' does not exist"
+  exit 1
+fi
+
+echo "${SCRIPT_MSG_PREFIX}: Copying sandbox container artifacts: ${template_artifacts_path}/* --> ${SB_COMPOSE_SERVICE}:/"
+echo "docker compose -f $compose_file_path cp $template_artifacts_path/. ${SB_COMPOSE_SERVICE}:/"
+docker compose -f $compose_file_path cp $template_artifacts_path/. ${SB_COMPOSE_SERVICE}:/
+if [ $? -ne 0 ]; then
+  echo "${SCRIPT_MSG_PREFIX}: Error: Docker compose file copy failed"
+  exit 1
+fi
 
 echo "${SCRIPT_MSG_PREFIX}: Template artifact copy complete - sandbox"

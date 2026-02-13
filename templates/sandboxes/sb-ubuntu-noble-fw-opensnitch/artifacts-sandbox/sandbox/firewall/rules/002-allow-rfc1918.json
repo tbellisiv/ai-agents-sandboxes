@@ -1,0 +1,15 @@
+{
+    "created": "2025-01-01T00:00:00Z",
+    "updated": "2025-01-01T00:00:00Z",
+    "name": "002-allow-rfc1918",
+    "enabled": true,
+    "precedence": true,
+    "action": "allow",
+    "duration": "always",
+    "operator": {
+        "type": "regexp",
+        "operand": "dest.ip",
+        "sensitive": false,
+        "data": "^(10\\.|172\\.(1[6-9]|2[0-9]|3[01])\\.|192\\.168\\.)"
+    }
+}

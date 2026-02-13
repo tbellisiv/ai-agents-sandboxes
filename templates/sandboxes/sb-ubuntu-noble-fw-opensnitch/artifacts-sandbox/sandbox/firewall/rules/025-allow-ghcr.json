@@ -1,0 +1,15 @@
+{
+    "created": "2025-01-01T00:00:00Z",
+    "updated": "2025-01-01T00:00:00Z",
+    "name": "025-allow-ghcr",
+    "enabled": true,
+    "precedence": false,
+    "action": "allow",
+    "duration": "always",
+    "operator": {
+        "type": "regexp",
+        "operand": "dest.host",
+        "sensitive": false,
+        "data": "^(ghcr\\.io|.*\\.pkg\\.github\\.com)$"
+    }
+}

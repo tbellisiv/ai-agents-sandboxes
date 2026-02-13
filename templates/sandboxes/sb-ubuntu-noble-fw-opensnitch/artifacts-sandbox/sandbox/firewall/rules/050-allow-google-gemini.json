@@ -1,0 +1,15 @@
+{
+    "created": "2025-01-01T00:00:00Z",
+    "updated": "2025-01-01T00:00:00Z",
+    "name": "050-allow-google-gemini",
+    "enabled": true,
+    "precedence": false,
+    "action": "allow",
+    "duration": "always",
+    "operator": {
+        "type": "regexp",
+        "operand": "dest.host",
+        "sensitive": false,
+        "data": "^(generativelanguage\\.googleapis\\.com|aistudio\\.google\\.com|accounts\\.google\\.com|oauth2\\.googleapis\\.com|www\\.googleapis\\.com)$"
+    }
+}

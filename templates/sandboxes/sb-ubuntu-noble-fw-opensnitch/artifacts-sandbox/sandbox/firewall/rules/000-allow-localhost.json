@@ -1,0 +1,15 @@
+{
+    "created": "2025-01-01T00:00:00Z",
+    "updated": "2025-01-01T00:00:00Z",
+    "name": "000-allow-localhost",
+    "enabled": true,
+    "precedence": true,
+    "action": "allow",
+    "duration": "always",
+    "operator": {
+        "type": "regexp",
+        "operand": "dest.ip",
+        "sensitive": false,
+        "data": "^(127\\.0\\.0\\.1|::1)$"
+    }
+}

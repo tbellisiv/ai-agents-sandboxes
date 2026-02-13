@@ -1,0 +1,15 @@
+{
+    "created": "2025-01-01T00:00:00Z",
+    "updated": "2025-01-01T00:00:00Z",
+    "name": "041-allow-openvsx",
+    "enabled": true,
+    "precedence": false,
+    "action": "allow",
+    "duration": "always",
+    "operator": {
+        "type": "regexp",
+        "operand": "dest.host",
+        "sensitive": false,
+        "data": "^(open-vsx\\.org|.*\\.open-vsx\\.org|d1vla68f02a8c4\\.cloudfront\\.net|.*\\.eclipsecontent\\.org)$"
+    }
+}
