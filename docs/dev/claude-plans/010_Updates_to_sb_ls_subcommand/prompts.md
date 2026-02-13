@@ -9,3 +9,6 @@ Prompts:
 > Read the updated high-level plan in docs/dev/claude-plans/010_Updates_to_sb_ls_subcommand/plan-overview.md. Update to implementation at docs/dev/claude-plans/010_Updates_to_sb_ls_subcommand/plan-claude.md accordningly.
 
 > Execute the tasks in docs/dev/009_Add_sb_run_subcommand/plan-claude.md
+
+> Read the updated high-level plan in docs/dev/claude-plans/010_Updates_to_sb_ls_subcommand/plan-overview.md. Update sandbox_ls in bin/sb accordingly. 
+

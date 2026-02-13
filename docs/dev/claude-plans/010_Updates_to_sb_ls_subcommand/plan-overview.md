@@ -2,7 +2,7 @@
 
 The objective is to update the 'sb ls' subcommand to display additional information.
 
-Updates:
+## Updates
 
 - By default, display the output as table in the following format for the first two rows in the table:
 
@@ -30,3 +30,14 @@ Where:
     <sandbox-id> [template=<template-id>] [image=<image>]
 
     
+## Additional Updates
+
+Objective - Update the formatting of the tabular output to look like below (example):
+
+SANDBOX ID        TEMPLATE ID                      IMAGE
+----------        -----------                      -----
+default           sb-ubuntu-noble                  sb-ubuntu-noble
+test              sb-ubuntu-noble-fw               sb-ubuntu-noble-fw
+dev-worktree-1    sb-ubuntu-noble-fw-opensnitch    sb-ubuntu-noble-fw-opensnitch 
+dev-main          sb-ubuntu-noble                  sb-ubuntu-noble
+

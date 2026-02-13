@@ -1011,10 +1011,32 @@ sandbox_ls() {
   # Format output
   case "$ls_output_format" in
     table)
-      echo "|Sandbox ID|Template ID|Image|"
-      echo "|----------|-----------|-----|"
+      # Column headers
+      local h1="SANDBOX ID" h2="TEMPLATE ID" h3="IMAGE"
+
+      # Compute max width for each column
+      local w1=${#h1} w2=${#h2}
       for i in "${!sandbox_ids[@]}"; do
-        echo "|${sandbox_ids[$i]}|${template_ids[$i]}|${images[$i]}|"
+        [ ${#sandbox_ids[$i]} -gt $w1 ] && w1=${#sandbox_ids[$i]}
+        [ ${#template_ids[$i]} -gt $w2 ] && w2=${#template_ids[$i]}
+      done
+
+      # Column widths with 4-space gap (last column has no gap)
+      local cw1=$((w1 + 4))
+      local cw2=$((w2 + 4))
+
+      # Print header
+      printf "%-${cw1}s%-${cw2}s%s\n" "$h1" "$h2" "$h3"
+
+      # Print separator (dashes matching header text length, padded to column width)
+      local s1=$(printf '%*s' ${#h1} '' | tr ' ' '-')
+      local s2=$(printf '%*s' ${#h2} '' | tr ' ' '-')
+      local s3=$(printf '%*s' ${#h3} '' | tr ' ' '-')
+      printf "%-${cw1}s%-${cw2}s%s\n" "$s1" "$s2" "$s3"
+
+      # Print data rows
+      for i in "${!sandbox_ids[@]}"; do
+        printf "%-${cw1}s%-${cw2}s%s\n" "${sandbox_ids[$i]}" "${template_ids[$i]}" "${images[$i]}"
       done
       ;;
     plain)

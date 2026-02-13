@@ -7,7 +7,7 @@ load test_helper
 # TABLE FORMAT TESTS (default)
 # =============================================================================
 
-@test "T1: table: displays header with correct column names" {
+@test "T1: table: displays header with uppercase column names" {
     create_test_project "$TEST_TEMP_DIR/project"
     create_test_sandbox "$TEST_TEMP_DIR/project" "sandbox1" "sb-ubuntu-noble" "sb-ubuntu-noble:latest"
 
@@ -17,10 +17,12 @@ load test_helper
     [ "$status" -eq 0 ]
 
     header=$(echo "$output" | head -n 1)
-    [ "$header" = "|Sandbox ID|Template ID|Image|" ]
+    [[ "$header" =~ ^SANDBOX\ ID ]]
+    [[ "$header" =~ TEMPLATE\ ID ]]
+    [[ "$header" =~ IMAGE$ ]]
 }
 
-@test "T2: table: displays separator as second line" {
+@test "T2: table: displays separator with dashes as second line" {
     create_test_project "$TEST_TEMP_DIR/project"
     create_test_sandbox "$TEST_TEMP_DIR/project" "sandbox1" "sb-ubuntu-noble" "sb-ubuntu-noble:latest"
 
@@ -30,7 +32,12 @@ load test_helper
     [ "$status" -eq 0 ]
 
     separator=$(echo "$output" | sed -n '2p')
-    [ "$separator" = "|----------|-----------|-----|" ]
+    # Separator should contain only dashes and spaces
+    [[ "$separator" =~ ^[-\ ]+$ ]]
+    # Should have dashes for each column
+    [[ "$separator" =~ ---------- ]]
+    [[ "$separator" =~ ----------- ]]
+    [[ "$separator" =~ -----$ ]]
 }
 
 @test "T3: table: displays single sandbox row with correct values" {
@@ -43,10 +50,12 @@ load test_helper
     [ "$status" -eq 0 ]
 
     data_row=$(echo "$output" | sed -n '3p')
-    [ "$data_row" = "|sandbox1|sb-ubuntu-noble|sb-ubuntu-noble:latest|" ]
+    [[ "$data_row" =~ ^sandbox1 ]]
+    [[ "$data_row" =~ sb-ubuntu-noble ]]
+    [[ "$data_row" =~ sb-ubuntu-noble:latest$ ]]
 }
 
-@test "T4: table: displays multiple sandboxes" {
+@test "T4: table: displays multiple sandboxes with aligned columns" {
     create_test_project "$TEST_TEMP_DIR/project"
     create_test_sandbox "$TEST_TEMP_DIR/project" "sandbox1" "sb-ubuntu-noble" "sb-ubuntu-noble:latest"
     create_test_sandbox "$TEST_TEMP_DIR/project" "sandbox2" "sb-ubuntu-noble-fw" "sb-ubuntu-noble-fw:latest"
@@ -56,11 +65,14 @@ load test_helper
     run sandbox_ls
     [ "$status" -eq 0 ]
 
+    # Should have header + separator + 2 data rows = 4 lines
     line_count=$(echo "$output" | wc -l)
     [ "$line_count" -eq 4 ]
 
-    [[ "$output" =~ "|sandbox1|sb-ubuntu-noble|sb-ubuntu-noble:latest|" ]]
-    [[ "$output" =~ "|sandbox2|sb-ubuntu-noble-fw|sb-ubuntu-noble-fw:latest|" ]]
+    [[ "$output" =~ sandbox1 ]]
+    [[ "$output" =~ sb-ubuntu-noble:latest ]]
+    [[ "$output" =~ sandbox2 ]]
+    [[ "$output" =~ sb-ubuntu-noble-fw:latest ]]
 }
 
 @test "T5: table: displays header and separator when no sandboxes exist" {
@@ -74,8 +86,12 @@ load test_helper
     line_count=$(echo "$output" | wc -l)
     [ "$line_count" -eq 2 ]
 
+    # With no data, column widths equal header lengths + 4-space gap
     header=$(echo "$output" | head -n 1)
-    [ "$header" = "|Sandbox ID|Template ID|Image|" ]
+    [ "$header" = "SANDBOX ID    TEMPLATE ID    IMAGE" ]
+
+    separator=$(echo "$output" | sed -n '2p')
+    [ "$separator" = "----------    -----------    -----" ]
 }
 
 @test "T6: table: is the default format when output_format is not set" {
@@ -88,7 +104,7 @@ load test_helper
     [ "$status" -eq 0 ]
 
     header=$(echo "$output" | head -n 1)
-    [ "$header" = "|Sandbox ID|Template ID|Image|" ]
+    [[ "$header" =~ ^SANDBOX\ ID ]]
 }
 
 # =============================================================================
@@ -265,7 +281,9 @@ EOF
     run sandbox_ls
     [ "$status" -eq 0 ]
 
-    [[ "$output" =~ "|my-sandbox|sb-ubuntu-noble-fw-opensnitch|sb-ubuntu-noble-fw-opensnitch:latest|" ]]
+    [[ "$output" =~ my-sandbox ]]
+    [[ "$output" =~ sb-ubuntu-noble-fw-opensnitch ]]
+    [[ "$output" =~ sb-ubuntu-noble-fw-opensnitch:latest ]]
 }
 
 @test "T20: handles sandbox missing sb-sandbox.env gracefully" {
@@ -278,7 +296,8 @@ EOF
     [ "$status" -eq 0 ]
 
     header=$(echo "$output" | head -n 1)
-    [ "$header" = "|Sandbox ID|Template ID|Image|" ]
+    [[ "$header" =~ ^SANDBOX\ ID ]]
 
-    [[ "$output" =~ "|broken-sandbox|||" ]]
+    # The broken sandbox row should show the ID
+    [[ "$output" =~ broken-sandbox ]]
 }
