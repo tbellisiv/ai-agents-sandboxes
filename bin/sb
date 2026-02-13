@@ -45,6 +45,9 @@ parser_definition() {
   cmd shell     -- "Starts a terminal shell in a sandbox                       "
   cmd sync      -- "Refreshes sandbox configuration, rebuilds the image and recreates the container"
   cmd compose   -- "Runs a docker compose command                              "
+  cmd cp        -- "Copy files between host and sandbox                        "
+  cmd exec      -- "Execute a command in a running sandbox                    "
+  cmd run       -- "Run a one-off command in a sandbox                        "
 }
 
 parser_definition_new() {
@@ -192,6 +195,97 @@ parser_definition_compose() {
   param   cmd            -c    --command                                                                                        -- "(Required) The command to run"
   param   project_path  -p    --project-path                                                                                    -- "The path to the project directory (the ".sb" directory). If not specified, $SCRIPT_NAME will attempt to find the path based on the current directory"
   disp    :usage        -h    --help
+}
+
+parser_definition_cp() {
+  setup   REST error:error_init help:usage abbr:true -- \
+    "Usage: $SCRIPT_NAME cp [<sandbox>] [-a] [-L] [-p <project-path>] <service:src> <dest>" \
+    "       $SCRIPT_NAME cp [<sandbox>] [-a] [-L] [-p <project-path>] <src> <service:dest>"
+  msg -- '' 'Copies files/directories between the host and a sandbox container.'
+  msg -- ''
+  msg -- 'The source or destination must include the compose service name prefix'
+  msg -- '(e.g., "myservice:/path/in/container"). The compose service name for a'
+  msg -- 'sandbox is defined in SB_COMPOSE_SERVICE in the sandbox sb-compose.env file.'
+  msg -- ''
+  msg -- 'Examples:'
+  msg -- ''
+  msg -- '  Copy a file from the host to the sandbox:'
+  msg -- "    $SCRIPT_NAME cp ./config.json myservice:/workspace/project/config.json"
+  msg -- ''
+  msg -- '  Copy a directory from the sandbox to the host:'
+  msg -- "    $SCRIPT_NAME cp myservice:/workspace/project/output ./output"
+  msg -- ''
+  msg -- 'Options:'
+  flag    archive       -a    --archive                                                                                    -- "Archive mode (copy all uid/gid information)"
+  flag    follow_link   -L    --follow-link                                                                                -- "Always follow symbol link in SRC_PATH"
+  param   project_path  -p    --project-path                                                                               -- "The path to the project directory (the \".sb\" directory). If not specified, $SCRIPT_NAME will attempt to find the path based on the current directory"
+  disp    :usage        -h    --help
+}
+
+parser_definition_exec() {
+  setup   REST help:usage abbr:true -- \
+    "Usage: $SCRIPT_NAME exec [<sandbox>] [-p <project-path>] [OPTIONS] COMMAND [ARGS...]"
+  msg -- '' 'Execute a command in a running sandbox container.'
+  msg -- ''
+  msg -- 'All OPTIONS and ARGS after the command are passed through to'
+  msg -- '"docker compose exec". See "docker compose exec --help" for'
+  msg -- 'available options (e.g. -T, -d, -u, -w, -e).'
+  msg -- ''
+  msg -- 'If <sandbox> is not specified, the default sandbox is used.'
+  msg -- 'The compose service for the sandbox is resolved automatically'
+  msg -- 'from SB_COMPOSE_SERVICE in the sandbox sb-compose.env file.'
+  msg -- ''
+  msg -- 'Examples:'
+  msg -- ''
+  msg -- '  Run a command in the default sandbox:'
+  msg -- "    $SCRIPT_NAME exec ls -la /workspace"
+  msg -- ''
+  msg -- '  Run a command in a specific sandbox:'
+  msg -- "    $SCRIPT_NAME exec mysandbox whoami"
+  msg -- ''
+  msg -- 'Options:'
+  flag    verbose       -v    --verbose                                           -- "Enables verbose output. By default only the output from the executed command is displayd."
+  param   project_path  -p    --project-path                                      -- "The path to the project directory (the \".sb\" directory). If not specified, $SCRIPT_NAME will attempt to find the path based on the current directory"
+  disp    :usage        -h    --help
+  msg -- ''
+  msg -- 'All other options are passed through to "docker compose exec".'
+}
+
+parser_definition_run() {
+  setup   REST help:usage abbr:true -- \
+    "Usage: $SCRIPT_NAME run [<sandbox>] [-q] [-p <project-path>] [OPTIONS] COMMAND [ARGS...]"
+  msg -- '' 'Run a one-off command in a new container for the sandbox.'
+  msg -- ''
+  msg -- 'This creates a new container from the sandbox compose service,'
+  msg -- 'runs the specified command, and then stops the container.'
+  msg -- 'Unlike "exec", which runs in an already-running container,'
+  msg -- '"run" starts a fresh container for the command.'
+  msg -- ''
+  msg -- 'All OPTIONS and ARGS after the command are passed through to'
+  msg -- '"docker compose run". See "docker compose run --help" for'
+  msg -- 'available options (e.g. --rm, -T, -d, -u, -w, -e, -v, --entrypoint).'
+  msg -- ''
+  msg -- 'If <sandbox> is not specified, the default sandbox is used.'
+  msg -- 'The compose service for the sandbox is resolved automatically'
+  msg -- 'from SB_COMPOSE_SERVICE in the sandbox sb-compose.env file.'
+  msg -- ''
+  msg -- 'Examples:'
+  msg -- ''
+  msg -- '  Run a command in the default sandbox:'
+  msg -- "    $SCRIPT_NAME run whoami"
+  msg -- ''
+  msg -- '  Run a command in a specific sandbox:'
+  msg -- "    $SCRIPT_NAME run mysandbox ls -la /workspace"
+  msg -- ''
+  msg -- '  Run and automatically remove the container afterwards:'
+  msg -- "    $SCRIPT_NAME run --rm whoami"
+  msg -- ''
+  msg -- 'Options:'
+  flag    verbose       -v    --verbose                                 -- "Enables verbose output. By default only the output from the executed command is displayd."
+  param   project_path  -p    --project-path                            -- "The path to the project directory (the \".sb\" directory). If not specified, $SCRIPT_NAME will attempt to find the path based on the current directory"
+  disp    :usage        -h    --help
+  msg -- ''
+  msg -- 'All other options are passed through to "docker compose run".'
 }
 
 sandbox_regex() {
@@ -1531,6 +1625,64 @@ sandbox_compose() {
     echo "$SCRIPT_NAME: Error- docker compose command failed"
     exit 1
   fi
+
+}
+
+sandbox_cp() {
+
+  local src_path="$1"
+  local dest_path="$2"
+
+  if [ -z "$src_path" ] || [ -z "$dest_path" ]; then
+    echo "$SCRIPT_NAME: Error: 'cp' requires source and destination path arguments"
+    echo "Usage: $SCRIPT_NAME cp [<sandbox-id>] [-a] [-L] sandbox:<src> <dest>"
+    echo "       $SCRIPT_NAME cp [<sandbox>-id] [-a] [-L] <src> sandbox:dest>"
+    exit 1
+  fi
+
+  #get the sandbox config
+  cmd_conf=$(get_sandbox_cmd_conf)
+  if [ $? -ne 0 ]; then
+    if [ -n "$cmd_conf" ]; then
+      echo "$cmd_conf"
+    fi
+    exit 1
+  fi
+  eval "$cmd_conf"
+
+  # Build docker compose cp options
+  local cp_opts=""
+  if [ -n "$archive" ]; then
+    cp_opts="$cp_opts -a"
+  fi
+  if [ -n "$follow_link" ]; then
+    cp_opts="$cp_opts -L"
+  fi
+
+  echo "$SCRIPT_NAME: Sandbox: $__sandbox_root"
+  echo "$SCRIPT_NAME: Running: docker compose -f $__compose_file cp${cp_opts} $src_path $dest_path"
+  echo ""
+  docker compose -f $__compose_file cp $cp_opts "$src_path" "$dest_path"
+  if [ $? -ne 0 ]; then
+    echo "$SCRIPT_NAME: Error- docker compose cp failed"
+    exit 1
+  fi
+
+}
+
+sandbox_exec() {
+
+  #get the sandbox config
+  cmd_conf=$(get_sandbox_cmd_conf)
+  if [ $? -ne 0 ]; then
+    if [ -n "$cmd_conf" ]; then
+      echo "$cmd_conf"
+    fi
+    exit 1
+  fi
+  eval "$cmd_conf"
+
+  docker compose -f $__compose_file exec  $__compose_service "$@"
   
 }
 
@@ -1543,7 +1695,7 @@ sandbox_up() {
       echo "$cmd_conf"
     fi
     exit 1
-  fi  
+  fi
   eval "$cmd_conf"
 
   echo "$SCRIPT_NAME: Ensuring: sandbox '$__sandbox_id' at '$__sandbox_root' is created and running"
@@ -2149,7 +2301,81 @@ if [ $# -gt 0 ]; then
         eval "$cmd_parser"
         sandbox=$1
         sandbox_compose $sandbox
-        ;;                         
+        ;;
+    cp)
+        cmd_parser="$(getoptions parser_definition_cp)"
+        eval "$cmd_parser"
+        if [ $# -ge 3 ]; then
+          sandbox=$1
+          sandbox_cp "$2" "$3"
+        elif [ $# -eq 2 ]; then
+          sandbox=
+          sandbox_cp "$1" "$2"
+        else
+          echo "$SCRIPT_NAME: Error: 'cp' requires source and destination path arguments"
+          echo "Usage: $SCRIPT_NAME cp [<sandbox>] [-a] [-L] <service:src> <dest>"
+          echo "       $SCRIPT_NAME cp [<sandbox>] [-a] [-L] <src> <service:dest>"
+          exit 1
+        fi
+        ;;
+    exec)
+        # Manual arg parsing: extract -p and -h from leading args,
+        # then pass remaining args through to docker compose exec.
+        # getoptions is NOT used because docker compose exec options
+        # (-T, -d, -u, -w, -e) would be rejected as unknown flags.
+        project_path=
+        quiet=
+        while [ $# -gt 0 ]; do
+          case "$1" in
+            -q|--quiet)
+              quiet=1
+              shift
+              ;;
+            -p|--project-path)
+              project_path="$2"
+              shift 2
+              ;;
+            -h|--help)
+              eval "$(getoptions parser_definition_exec)"
+              usage
+              exit 0
+              ;;
+            *)
+              break
+              ;;
+          esac
+        done
+
+        if [ $# -eq 0 ]; then
+          echo "$SCRIPT_NAME: Error: 'exec' requires a command to execute"
+          echo "Usage: $SCRIPT_NAME exec [<sandbox>] [-p <project-path>] [OPTIONS] COMMAND [ARGS...]"
+          exit 1
+        fi
+
+        # Determine if first arg is a sandbox-id.
+        # Heuristic: if first arg doesn't start with '-' and a sandbox
+        # directory with that name exists, treat it as the sandbox-id.
+        sandbox=
+        if [[ ! "$1" =~ ^- ]]; then
+          _proj_path="${project_path:-$(dir_search_tree_up_by_dirname ".sb")}"
+          if [ -n "$_proj_path" ]; then
+            _proj_path_abs=$(readlink -f "$_proj_path")
+            if [ -d "$_proj_path_abs/sandboxes/$1" ]; then
+              sandbox="$1"
+              shift
+            fi
+          fi
+        fi
+
+        if [ $# -eq 0 ]; then
+          echo "$SCRIPT_NAME: Error: 'exec' requires a command to execute"
+          echo "Usage: $SCRIPT_NAME exec [<sandbox>] [-p <project-path>] [OPTIONS] COMMAND [ARGS...]"
+          exit 1
+        fi
+
+        sandbox_exec "$@"
+        ;;
+
 
     --) # no subcommand, arguments only
   esac
