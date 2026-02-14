@@ -18,7 +18,8 @@ load test_helper
     [ "$status" -eq 0 ]
 
     header=$(echo "$output" | head -n 1)
-    [[ "$header" =~ ^SANDBOX\ ID ]]
+    [[ "$header" =~ ^PROJECT\ ID ]]
+    [[ "$header" =~ SANDBOX\ ID ]]
     [[ "$header" =~ STATUS ]]
     [[ "$header" =~ CREATED ]]
     [[ "$header" =~ CONTAINER_NAME ]]
@@ -58,7 +59,8 @@ load test_helper
     [ "$status" -eq 0 ]
 
     data_row=$(echo "$output" | sed -n '3p')
-    [[ "$data_row" =~ ^default ]]
+    [[ "$data_row" =~ ^test-project ]]
+    [[ "$data_row" =~ default ]]
     [[ "$data_row" =~ Up\ 19\ hours\ \(healthy\) ]]
     [[ "$data_row" =~ 19\ hours\ ago ]]
     [[ "$data_row" =~ test-proj-default ]]
@@ -82,6 +84,7 @@ load test_helper
     line_count=$(echo "$output" | wc -l)
     [ "$line_count" -eq 4 ]
 
+    [[ "$output" =~ test-project ]]
     [[ "$output" =~ default ]]
     [[ "$output" =~ Up\ 19\ hours ]]
     [[ "$output" =~ dev-main ]]
@@ -100,10 +103,10 @@ load test_helper
     [ "$line_count" -eq 2 ]
 
     header=$(echo "$output" | head -n 1)
-    [ "$header" = "SANDBOX ID    STATUS    CREATED    CONTAINER_NAME    SERVICE    IMAGE" ]
+    [ "$header" = "PROJECT ID      SANDBOX ID    STATUS    CREATED    CONTAINER_NAME    SERVICE    IMAGE" ]
 
     separator=$(echo "$output" | sed -n '2p')
-    [ "$separator" = "----------    ------    -------    --------------    -------    -----" ]
+    [ "$separator" = "----------      ----------    ------    -------    --------------    -------    -----" ]
 }
 
 @test "T6: table: is the default format when output_format is not set" {
@@ -117,7 +120,7 @@ load test_helper
     [ "$status" -eq 0 ]
 
     header=$(echo "$output" | head -n 1)
-    [[ "$header" =~ ^SANDBOX\ ID ]]
+    [[ "$header" =~ ^PROJECT\ ID ]]
 }
 
 @test "T7: table: shows sandbox with no container (empty runtime fields)" {
@@ -130,7 +133,8 @@ load test_helper
     run sandbox_ps
     [ "$status" -eq 0 ]
 
-    # Should still show the sandbox row with the sandbox ID and image
+    # Should still show the sandbox row with project ID, sandbox ID and image
+    [[ "$output" =~ test-project ]]
     [[ "$output" =~ no-container ]]
     [[ "$output" =~ sb-ubuntu-noble:latest ]]
 }
@@ -148,7 +152,7 @@ load test_helper
     output_format="plain"
     run sandbox_ps
     [ "$status" -eq 0 ]
-    [[ "$output" =~ "sandbox1 [template=sb-ubuntu-noble] [image=sb-ubuntu-noble:latest]" ]]
+    [[ "$output" =~ "sandbox1 [project=test-project] [template=sb-ubuntu-noble] [image=sb-ubuntu-noble:latest]" ]]
 }
 
 @test "T9: plain: displays multiple sandboxes" {
@@ -166,8 +170,8 @@ load test_helper
     line_count=$(echo "$output" | wc -l)
     [ "$line_count" -eq 2 ]
 
-    [[ "$output" =~ "sandbox1 [template=sb-ubuntu-noble] [image=sb-ubuntu-noble:latest]" ]]
-    [[ "$output" =~ "sandbox2 [template=sb-ubuntu-noble-fw] [image=sb-ubuntu-noble-fw:latest]" ]]
+    [[ "$output" =~ "sandbox1 [project=test-project] [template=sb-ubuntu-noble] [image=sb-ubuntu-noble:latest]" ]]
+    [[ "$output" =~ "sandbox2 [project=test-project] [template=sb-ubuntu-noble-fw] [image=sb-ubuntu-noble-fw:latest]" ]]
 }
 
 @test "T10: plain: produces no output when no sandboxes exist" {
@@ -195,6 +199,7 @@ load test_helper
     [ "$status" -eq 0 ]
 
     [[ "$output" =~ "[" ]]
+    [[ "$output" =~ "\"project_id\": \"test-project\"" ]]
     [[ "$output" =~ "\"sandbox_id\": \"sandbox1\"" ]]
     [[ "$output" =~ "\"template_id\": \"sb-ubuntu-noble\"" ]]
     [[ "$output" =~ "\"image\": \"sb-ubuntu-noble:latest\"" ]]
@@ -217,6 +222,7 @@ load test_helper
     run sandbox_ps
     [ "$status" -eq 0 ]
 
+    [[ "$output" =~ "\"project_id\": \"test-project\"" ]]
     [[ "$output" =~ "\"sandbox_id\": \"sandbox1\"" ]]
     [[ "$output" =~ "\"sandbox_id\": \"sandbox2\"" ]]
 }
@@ -241,6 +247,7 @@ load test_helper
     run sandbox_ps
     [ "$status" -eq 0 ]
 
+    [[ "$output" =~ "\"project_id\": \"test-project\"" ]]
     [[ "$output" =~ "\"sandbox_id\": \"sandbox1\"" ]]
     [[ "$output" =~ "\"status\": \"\"" ]]
     [[ "$output" =~ "\"created\": \"\"" ]]
@@ -262,7 +269,8 @@ load test_helper
     run sandbox_ps
     [ "$status" -eq 0 ]
 
-    [[ "$output" =~ "- sandbox_id: sandbox1" ]]
+    [[ "$output" =~ "- project_id: test-project" ]]
+    [[ "$output" =~ "  sandbox_id: sandbox1" ]]
     [[ "$output" =~ "  template_id: sb-ubuntu-noble" ]]
     [[ "$output" =~ "  image: sb-ubuntu-noble:latest" ]]
     [[ "$output" =~ "  status: Up 19 hours (healthy)" ]]
@@ -283,8 +291,9 @@ load test_helper
     run sandbox_ps
     [ "$status" -eq 0 ]
 
-    [[ "$output" =~ "- sandbox_id: sandbox1" ]]
-    [[ "$output" =~ "- sandbox_id: sandbox2" ]]
+    [[ "$output" =~ "- project_id: test-project" ]]
+    [[ "$output" =~ "  sandbox_id: sandbox1" ]]
+    [[ "$output" =~ "  sandbox_id: sandbox2" ]]
 }
 
 @test "T17: yaml: displays empty list when no sandboxes exist" {
@@ -344,6 +353,7 @@ EOF
     run sandbox_ps
     [ "$status" -eq 0 ]
 
+    [[ "$output" =~ test-project ]]
     [[ "$output" =~ my-sandbox ]]
     [[ "$output" =~ sb-ubuntu-noble-fw-opensnitch:latest ]]
     [[ "$output" =~ proj-my-sandbox ]]
@@ -369,7 +379,7 @@ EOF
     [ "$status" -eq 0 ]
 
     header=$(echo "$output" | head -n 1)
-    [[ "$header" =~ ^SANDBOX\ ID ]]
+    [[ "$header" =~ ^PROJECT\ ID ]]
     [[ "$output" =~ broken-sandbox ]]
 }
 
@@ -389,6 +399,7 @@ EOF
     run sandbox_ps
     [ "$status" -eq 0 ]
 
+    [[ "$output" =~ "\"project_id\": \"test-project\"" ]]
     [[ "$output" =~ "\"sandbox_id\": \"no-compose\"" ]]
     [[ "$output" =~ "\"template_id\": \"sb-ubuntu-noble\"" ]]
     [[ "$output" =~ "\"status\": \"\"" ]]

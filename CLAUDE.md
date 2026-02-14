@@ -33,9 +33,9 @@ sb compose -c "<cmd>"                  # Run docker compose command
 
 Common options: `-p/--project-path` to specify project, `-t/--template-id` for template selection, `-c/--sandbox-clone` to clone existing sandbox.
 
-**`sb ps`** output formats (`-o`): `table` (default), `plain`, `json`, `yaml`. Table columns: Sandbox ID, Status, Created, Container Name, Service, Image.
+**`sb ps`** output formats (`-o`): `table` (default), `plain`, `json`, `yaml`. Table columns: Project ID, Sandbox ID, Status, Created, Container Name, Service, Image.
 
-**`sb ls`** output formats (`-o`): `table` (default), `minimal`, `plain`, `json`, `yaml`. Table columns: Sandbox ID, Template ID, Image.
+**`sb ls`** output formats (`-o`): `table` (default), `minimal`, `plain`, `json`, `yaml`. Table columns: Project ID, Sandbox ID, Template ID, Image.
 
 **`sb exec`** passes all unrecognized options through to `docker compose exec` (e.g., `-T`, `-d`, `-u`, `-w`, `-e`). Uses `-v/--verbose` for verbose output. Resolves compose service from `SB_COMPOSE_SERVICE` in sandbox `sb-compose.env`.
 

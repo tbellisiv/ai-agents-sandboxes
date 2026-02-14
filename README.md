@@ -130,13 +130,13 @@ sb compose -c "<cmd>"                  Run a docker compose command
 
 Displays status for all sandboxes in the project. Output formats (`-o`): `table` (default), `plain`, `json`, `yaml`.
 
-Table columns: Sandbox ID, Status, Created, Container Name, Service, Image.
+Table columns: Project ID, Sandbox ID, Status, Created, Container Name, Service, Image.
 
 #### `sb ls` - List Sandboxes
 
 Lists all sandboxes in the project. Output formats (`-o`): `table` (default), `minimal`, `plain`, `json`, `yaml`.
 
-Table columns: Sandbox ID, Template ID, Image. The `minimal` format outputs sandbox IDs only (one per line).
+Table columns: Project ID, Sandbox ID, Template ID, Image. The `minimal` format outputs sandbox IDs only (one per line).
 
 #### `sb exec` - Execute Command
 
