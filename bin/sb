@@ -185,7 +185,7 @@ parser_definition_ls() {
   setup   REST error:error_init help:usage abbr:true -- "Usage: $SCRIPT_NAME ls [<options>]"
   msg -- '' 'Lists all sandboxes in the project'
   msg -- 'Options:'
-  param   output_format -o    --output                                                                                          -- "Output format: table (default), plain, json, yaml"
+  param   output_format -o    --output                                                                                          -- "Output format: table (default), minimal, plain, json, yaml"
   param   project_path  -p    --project-path                                                                                    -- "The path to the project directory (the \".sb\" directory). If not specified, $SCRIPT_NAME will attempt to find the path based on the current directory"
   disp    :usage        -h    --help
 }
@@ -1186,6 +1186,12 @@ sandbox_ls() {
         printf "%-${cw1}s%-${cw2}s%s\n" "${sandbox_ids[$i]}" "${template_ids[$i]}" "${images[$i]}"
       done
       ;;
+    minimal)
+      for i in "${!sandbox_ids[@]}"; do
+        echo "${sandbox_ids[$i]}"
+      done
+      ;;
+
     plain)
       for i in "${!sandbox_ids[@]}"; do
         echo "${sandbox_ids[$i]} [template=${template_ids[$i]}] [image=${images[$i]}]"

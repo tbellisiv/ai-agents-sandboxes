@@ -35,13 +35,15 @@ A Bash-based CLI tool for creating and managing isolated Docker development sand
 
 ### OpenSnitch Firewall Template (`sb-ubuntu-noble-fw-opensnitch`)
 - Extends base template (directly, not the iptables template)
-- OpenSnitch daemon for application-level outbound connection interception
+- OpenSnitch daemon v1.7.2 for application-level outbound connection interception
+- Uses nftables as firewall backend
 - Domain-based rules (not IP-based) - more reliable than iptables for dynamic IPs
-- Custom Go TUI controller for interactive connection management
-- Pre-configured rules for: localhost, DNS, RFC1918, GitHub, npm, Go, Anthropic, VS Code, Gemini
+- Custom Go TUI controller (`opensnitch-controller`) for interactive connection management
+- Pre-configured rules for: localhost, DNS (Cloudflare), RFC1918, GitHub, npm, Go, ghcr.io, Anthropic, VS Code marketplace, OpenVSX, Gemini; denies Datadog telemetry
 - gRPC port 50051 restricted to root via nftables
-- Configurable via `FIREWALL_ENABLED` environment variable
+- Configurable via `FIREWALL_ENABLED` environment variable (default: true)
 - Persistent rules and logs via `/sandbox/firewall` volume
+- Healthcheck: `pgrep -x opensnitchd` every 60s
 
 ## Quick Start
 
@@ -114,12 +116,62 @@ sb unpause [sandbox-id]                Resume paused sandbox
 sb shell [sandbox-id]                  Open interactive shell
 sb sync [sandbox-id]                   Refresh config, rebuild image, recreate container
 sb rm [sandbox-id]                     Delete sandbox
-sb ps                                  Display sandbox status
-sb ls                                  List all sandboxes in the project
+sb ps [-o format]                      Display status for all project sandboxes
+sb ls [-o format]                      List all sandboxes in the project
+sb exec [sandbox-id] [opts] <cmd>      Execute a command in a running sandbox
+sb cp [sandbox-id] <src> <dest>        Copy files between host and sandbox
+sb run [sandbox-id] [opts] <cmd>       Run a one-off command in a sandbox
 sb logs [sandbox-id] [-f]              Display container logs
 sb env [sandbox-id]                    Print Docker Compose .env file
 sb compose -c "<cmd>"                  Run a docker compose command
 ```
+
+#### `sb ps` - Sandbox Status
+
+Displays status for all sandboxes in the project. Output formats (`-o`): `table` (default), `plain`, `json`, `yaml`.
+
+Table columns: Sandbox ID, Status, Created, Container Name, Service, Image.
+
+#### `sb ls` - List Sandboxes
+
+Lists all sandboxes in the project. Output formats (`-o`): `table` (default), `minimal`, `plain`, `json`, `yaml`.
+
+Table columns: Sandbox ID, Template ID, Image. The `minimal` format outputs sandbox IDs only (one per line).
+
+#### `sb exec` - Execute Command
+
+Executes a command in a running sandbox container. All unrecognized options are passed through to `docker compose exec` (e.g., `-T`, `-d`, `-u`, `-w`, `-e`).
+
+```bash
+sb exec ls -la /workspace              # Run in default sandbox
+sb exec mysandbox whoami               # Run in specific sandbox
+sb exec -T mysandbox cat /etc/hosts    # Disable pseudo-TTY allocation
+```
+
+Options: `-v/--verbose` for verbose output, `-p/--project-path` to specify project.
+
+#### `sb cp` - Copy Files
+
+Copies files/directories between the host and a sandbox container using `docker compose cp`. The source or destination must include the compose service name prefix (e.g., `myservice:/path/in/container`).
+
+```bash
+sb cp ./config.json myservice:/workspace/project/config.json   # Host to sandbox
+sb cp myservice:/workspace/project/output ./output             # Sandbox to host
+```
+
+Options: `-a` (archive mode), `-L` (follow symlinks), `-p/--project-path`.
+
+#### `sb run` - One-off Command
+
+Runs a one-off command in a new container for the sandbox. Unlike `exec`, this starts a fresh container. All unrecognized options are passed through to `docker compose run` (e.g., `--rm`, `-T`, `-d`, `-u`, `-w`, `-e`, `-v`, `--entrypoint`).
+
+```bash
+sb run whoami                          # Run in default sandbox
+sb run mysandbox ls -la /workspace     # Run in specific sandbox
+sb run --rm whoami                     # Auto-remove container after run
+```
+
+Options: `-v/--verbose` for verbose output, `-p/--project-path` to specify project.
 
 ### `sb-project` - Project Management
 ```
@@ -205,6 +257,12 @@ Uses [BATS](https://github.com/bats-core/bats-core) (Bash Automated Testing Syst
 ```bash
 # Run sync unit tests
 ./tests/sync/unit/run-tests.sh
+
+# Run sb ps unit tests
+bats tests/sb-ps/unit/sandbox_ps.bats
+
+# Run sb ls unit tests
+bats tests/sb-ls/unit/sandbox_ls.bats
 
 # Run firewall image integration tests
 ./tests/images/sb-ubuntu-noble-fw/run-tests.sh

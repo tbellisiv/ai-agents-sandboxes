@@ -21,13 +21,27 @@ sb unpause [sandbox-id]                # Resume paused sandbox
 sb shell [sandbox-id]                  # Open interactive shell
 sb sync [sandbox-id]                   # Refresh config, rebuild image, recreate container
 sb rm [sandbox-id]                     # Delete sandbox
-sb ps / sb ls                          # List sandboxes / show status
+sb ps [-o format]                      # Display status for all project sandboxes
+sb ls [-o format]                      # List all sandboxes in the project
+sb exec [sandbox-id] [opts] <cmd>      # Execute command in running sandbox
+sb cp [sandbox-id] <src> <dest>        # Copy files between host and sandbox
+sb run [sandbox-id] [opts] <cmd>       # Run one-off command in new container
 sb logs [sandbox-id] [-f]              # Display container logs (-f to follow)
 sb env [sandbox-id]                    # Print Docker Compose .env file
 sb compose -c "<cmd>"                  # Run docker compose command
 ```
 
 Common options: `-p/--project-path` to specify project, `-t/--template-id` for template selection, `-c/--sandbox-clone` to clone existing sandbox.
+
+**`sb ps`** output formats (`-o`): `table` (default), `plain`, `json`, `yaml`. Table columns: Sandbox ID, Status, Created, Container Name, Service, Image.
+
+**`sb ls`** output formats (`-o`): `table` (default), `minimal`, `plain`, `json`, `yaml`. Table columns: Sandbox ID, Template ID, Image.
+
+**`sb exec`** passes all unrecognized options through to `docker compose exec` (e.g., `-T`, `-d`, `-u`, `-w`, `-e`). Uses `-v/--verbose` for verbose output. Resolves compose service from `SB_COMPOSE_SERVICE` in sandbox `sb-compose.env`.
+
+**`sb cp`** uses `docker compose cp`. Prefix source or destination with the compose service name (e.g., `myservice:/path`). Supports `-a` (archive) and `-L` (follow symlinks).
+
+**`sb run`** passes all unrecognized options through to `docker compose run` (e.g., `--rm`, `-T`, `-d`, `-u`, `-w`, `-e`, `-v`, `--entrypoint`). Uses `-v/--verbose` for verbose output.
 
 ### Project/User/Template Setup
 ```bash
@@ -76,6 +90,8 @@ ai-agents-sandboxes/
 │   └── system-example/           # Example module template
 ├── tests/                        # Test suites (BATS)
 │   ├── images/sb-ubuntu-noble-fw/  # Firewall image integration tests
+│   ├── sb-ps/unit/                 # sb ps subcommand unit tests
+│   ├── sb-ls/unit/                 # sb ls subcommand unit tests
 │   └── sync/unit/                  # Sync functionality unit tests
 └── docs/                         # Documentation & planning
     ├── setup.md                  # Setup steps
@@ -222,9 +238,9 @@ Docker Compose includes these via the `include:` directive.
 
 ### Container Configuration (sb-ubuntu-noble-fw-opensnitch)
 - Extends: sb-ubuntu-noble (directly, NOT sb-ubuntu-noble-fw)
-- Firewall: OpenSnitch (application-level, domain-based)
+- Firewall: OpenSnitch (application-level, domain-based) with nftables backend
 - OpenSnitch daemon v1.7.2 intercepts outbound connections
-- Custom Go TUI controller (`opensnitch-controller`) for interactive rule management
+- Custom Go TUI controller (`opensnitch-controller`) for interactive rule management (built from Go source at image build time; Go toolchain removed from final image)
 - nftables rule restricts OpenSnitch gRPC port 50051 to root only
 - Default action: deny (unknown connections blocked unless explicitly allowed)
 - Capabilities: NET_ADMIN, NET_RAW, SETUID, SETGID, DAC_OVERRIDE, CHOWN
@@ -242,13 +258,23 @@ Docker Compose includes these via the `include:` directive.
 ### Container Startup Flow
 1. Docker entrypoint (`/entrypoint.sh`) starts
 2. Runs command: `/sandbox/hooks/init/init.sh`
-3. `init.sh` executes in order:
+3. Each template has its own `init.sh`. Init order by template:
+
+   **sb-ubuntu-noble (base):**
    - `ssh-init.sh` - Setup SSH (symlink ~/.ssh to /sandbox/user-secrets/.ssh)
    - `nuget-init.sh` - Setup NuGet (symlink ~/.nuget to /sandbox/user-secrets/.nuget)
+   - `dotnet-tools-init.sh` - Install dotnet tools
    - `nvm-init.sh` - Setup Node.js/NVM
    - `claude-init.sh` - Setup Claude AI
-   - `firewall-init.sh` - Initialize firewall (opensnitch template only, runs as root via sudo)
    - `modules-init.sh` - Initialize modules (executes each module's `hooks/init/init.sh`)
+
+   **sb-ubuntu-noble-fw** (iptables firewall is baked into the image, no runtime firewall init):
+   - `ssh-init.sh`, `nuget-init.sh`, `nvm-init.sh`, `claude-init.sh`, `modules-init.sh`
+
+   **sb-ubuntu-noble-fw-opensnitch:**
+   - `ssh-init.sh`, `nuget-init.sh`, `nvm-init.sh`, `claude-init.sh`, `modules-init.sh`
+   - `firewall-init.sh` - Initialize OpenSnitch firewall (runs as root via sudo, last step)
+
 4. Container runs `exec sleep infinity` to remain running
 
 ### Sandbox Creation Flow (`sb new`)
@@ -272,6 +298,12 @@ Uses [BATS](https://github.com/bats-core/bats-core) (Bash Automated Testing Syst
 # Sync unit tests
 ./tests/sync/unit/run-tests.sh                    # Run all sync tests
 ./tests/sync/unit/run-tests.sh <test-file.bats>   # Run specific test file
+
+# sb ps unit tests
+bats tests/sb-ps/unit/sandbox_ps.bats
+
+# sb ls unit tests
+bats tests/sb-ls/unit/sandbox_ls.bats
 
 # Image tests (builds image, starts container, runs tests inside it)
 ./tests/images/sb-ubuntu-noble-fw/run-tests.sh             # Full run (builds image first)
